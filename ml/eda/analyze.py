@@ -121,7 +121,8 @@ def analyze(
     markdown_output_path: Path = REPORTS / "eda_report.md",
     figures_dir: Path = FIGURES_DIR,
 ) -> dict[str, Any]:
-    with timed_stage("run_eda") as perf:
+    record_performance = report_output_path == REPORTS / "eda_report.json"
+    with timed_stage("run_eda", enabled=record_performance) as perf:
         ensure_dirs()
         figures_dir.mkdir(parents=True, exist_ok=True)
         config = read_json(config_path) if config_path.exists() else {}

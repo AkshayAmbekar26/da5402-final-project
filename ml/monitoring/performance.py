@@ -56,13 +56,15 @@ def timed_stage(
     stage_name: str,
     rows_processed: int | None = None,
     extra: dict[str, Any] | None = None,
+    enabled: bool = True,
 ) -> Iterator[dict[str, Any]]:
     context: dict[str, Any] = {}
     start = perf_counter()
     try:
         yield context
     finally:
-        final_rows = context.get("rows_processed", rows_processed)
-        final_extra = dict(extra or {})
-        final_extra.update(context.get("extra", {}))
-        record_stage_performance(stage_name, perf_counter() - start, final_rows, final_extra)
+        if enabled:
+            final_rows = context.get("rows_processed", rows_processed)
+            final_extra = dict(extra or {})
+            final_extra.update(context.get("extra", {}))
+            record_stage_performance(stage_name, perf_counter() - start, final_rows, final_extra)

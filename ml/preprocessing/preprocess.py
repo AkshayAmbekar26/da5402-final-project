@@ -37,7 +37,8 @@ def preprocess(
     rejected_output: Path = DATA_INTERIM / "rejected_reviews.csv",
     report_output_path: Path = REPORTS / "preprocessing_report.json",
 ) -> dict[str, object]:
-    with timed_stage("preprocess_data") as perf:
+    record_performance = report_output_path == REPORTS / "preprocessing_report.json"
+    with timed_stage("preprocess_data", enabled=record_performance) as perf:
         ensure_dirs()
         config = read_json(config_path) if config_path.exists() else {}
         min_text_length = int(config.get("min_text_length", 20))

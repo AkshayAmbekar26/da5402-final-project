@@ -73,7 +73,8 @@ def compute_baseline(
             "tracked_features": len(baseline["tfidf_feature_means"]),
         },
     )
-    record_stage_performance("compute_drift_baseline", perf_counter() - start, rows_processed=len(df))
+    if baseline_output_path == DATA_BASELINES / "feature_baseline.json":
+        record_stage_performance("compute_drift_baseline", perf_counter() - start, rows_processed=len(df))
     return baseline
 
 
