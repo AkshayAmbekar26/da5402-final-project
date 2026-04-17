@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -59,6 +60,7 @@ def git_commit_hash() -> str:
 
 
 def dvc_data_version() -> str:
+    lock_path = ROOT / "dvc.lock"
     try:
         return (
             subprocess.check_output(
@@ -70,4 +72,6 @@ def dvc_data_version() -> str:
             or "{}"
         )
     except Exception:
+        if lock_path.exists():
+            return f"dvc-lock-sha256:{hashlib.sha256(lock_path.read_bytes()).hexdigest()}"
         return "dvc-unavailable"
