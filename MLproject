@@ -1,0 +1,19 @@
+name: product-review-sentiment-mlops
+
+entry_points:
+  main:
+    parameters:
+      rows_per_class: {type: int, default: 30}
+    command: >
+      python -m ml.data_ingestion.ingest --rows-per-class {rows_per_class} &&
+      python -m ml.validation.validate_data &&
+      python -m ml.preprocessing.preprocess &&
+      python -m ml.features.compute_baseline &&
+      python -m ml.training.train &&
+      python -m ml.evaluation.evaluate &&
+      python -m ml.monitoring.drift &&
+      python -m ml.monitoring.publish_report
+
+  train:
+    command: python -m ml.training.train
+

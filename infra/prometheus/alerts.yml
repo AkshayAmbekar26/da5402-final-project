@@ -1,0 +1,43 @@
+groups:
+  - name: sentiment-api-alerts
+    rules:
+      - alert: SentimentApiDown
+        expr: up{job="sentiment-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Sentiment API is unavailable"
+
+      - alert: SentimentApiHighErrorRate
+        expr: sum(rate(sentiment_api_requests_total{status_code=~"5.."}[2m])) / sum(rate(sentiment_api_requests_total[2m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sentiment API error rate is above 5%"
+
+      - alert: SentimentModelNotLoaded
+        expr: sentiment_model_loaded == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API is serving with fallback model"
+
+      - alert: SentimentDriftDetected
+        expr: sentiment_data_drift_score > 0.25
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Input data drift has crossed the configured threshold"
+
+      - alert: SentimentApiLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(sentiment_model_inference_latency_seconds_bucket[2m])) by (le)) > 0.2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 inference latency is above 200 ms"
+

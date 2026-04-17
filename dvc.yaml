@@ -1,0 +1,95 @@
+stages:
+  ingest:
+    cmd: python -m ml.data_ingestion.ingest --rows-per-class 30
+    deps:
+      - ml/data_ingestion/ingest.py
+      - ml/common.py
+    outs:
+      - data/raw/reviews.csv
+    metrics:
+      - reports/ingestion_report.json:
+          cache: false
+
+  validate:
+    cmd: python -m ml.validation.validate_data
+    deps:
+      - data/raw/reviews.csv
+      - ml/validation/validate_data.py
+    metrics:
+      - reports/data_validation.json:
+          cache: false
+
+  preprocess:
+    cmd: python -m ml.preprocessing.preprocess
+    deps:
+      - data/raw/reviews.csv
+      - ml/preprocessing/preprocess.py
+    outs:
+      - data/processed/train.csv
+      - data/processed/validation.csv
+      - data/processed/test.csv
+    metrics:
+      - reports/preprocessing_report.json:
+          cache: false
+
+  featurize:
+    cmd: python -m ml.features.compute_baseline
+    deps:
+      - data/processed/train.csv
+      - ml/features/compute_baseline.py
+    outs:
+      - data/baselines/feature_baseline.json
+    metrics:
+      - reports/feature_baseline_report.json:
+          cache: false
+
+  train:
+    cmd: python -m ml.training.train
+    deps:
+      - data/processed/train.csv
+      - data/processed/validation.csv
+      - data/processed/test.csv
+      - ml/training/train.py
+    outs:
+      - models/sentiment_model.joblib
+      - models/model_metadata.json
+      - models/feature_importance.json
+    metrics:
+      - reports/training_metrics.json:
+          cache: false
+
+  evaluate:
+    cmd: python -m ml.evaluation.evaluate
+    deps:
+      - models/sentiment_model.joblib
+      - data/processed/test.csv
+      - ml/evaluation/evaluate.py
+    metrics:
+      - reports/evaluation.json:
+          cache: false
+
+  drift:
+    cmd: python -m ml.monitoring.drift
+    deps:
+      - data/baselines/feature_baseline.json
+      - data/processed/test.csv
+      - ml/monitoring/drift.py
+    metrics:
+      - reports/drift_report.json:
+          cache: false
+
+  publish:
+    cmd: python -m ml.monitoring.publish_report
+    deps:
+      - reports/ingestion_report.json
+      - reports/data_validation.json
+      - reports/preprocessing_report.json
+      - reports/feature_baseline_report.json
+      - reports/training_metrics.json
+      - reports/evaluation.json
+      - reports/drift_report.json
+      - ml/monitoring/publish_report.py
+    metrics:
+      - reports/pipeline_report.json:
+          cache: false
+

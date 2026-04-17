@@ -1,0 +1,69 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [{"expr": "sum(rate(sentiment_api_requests_total[1m])) by (endpoint)", "legendFormat": "{{endpoint}}", "refId": "A"}],
+      "title": "API request throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "id": 2,
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(sentiment_model_inference_latency_seconds_bucket[1m])) by (le))", "legendFormat": "p95", "refId": "A"}],
+      "title": "P95 inference latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "id": 3,
+      "targets": [{"expr": "sum(sentiment_predictions_total) by (sentiment)", "legendFormat": "{{sentiment}}", "refId": "A"}],
+      "title": "Prediction distribution",
+      "type": "barchart"
+    },
+    {
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+      "id": 4,
+      "targets": [{"expr": "sentiment_model_loaded", "legendFormat": "loaded", "refId": "A"}],
+      "title": "Model loaded",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+      "id": 5,
+      "targets": [{"expr": "sentiment_data_drift_score", "legendFormat": "drift", "refId": "A"}],
+      "title": "Drift score",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+      "id": 6,
+      "targets": [{"expr": "sum(rate(sentiment_api_requests_total{status_code=~\"5..\"}[2m])) / sum(rate(sentiment_api_requests_total[2m]))", "legendFormat": "error rate", "refId": "A"}],
+      "title": "Error rate",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["sentiment", "mlops"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "title": "Product Review Sentiment MLOps",
+  "uid": "sentiment-mlops"
+}
+

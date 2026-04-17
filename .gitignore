@@ -1,0 +1,34 @@
+.DS_Store
+.env
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Data and generated artifacts are tracked through DVC, not Git.
+data/raw/*.csv
+data/interim/*.csv
+data/processed/*.csv
+data/baselines/*.json
+models/*.joblib
+models/*.json
+reports/*.json
+reports/*.png
+feedback/*.jsonl
+logs/*.log
+mlruns/
+.dvc/cache/
+
+# Frontend
+apps/frontend/node_modules/
+apps/frontend/dist/
+
+# Docker/local state
+airflow/logs/
+airflow/plugins/
+postgres-data/
+grafana-data/
