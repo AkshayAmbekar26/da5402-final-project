@@ -9,6 +9,7 @@ REPORT_FILES = [
     "preprocessing_report.json",
     "feature_baseline_report.json",
     "training_metrics.json",
+    "model_comparison.json",
     "evaluation.json",
     "drift_report.json",
 ]

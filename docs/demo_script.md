@@ -20,17 +20,18 @@ docker compose config
 5. Submit feedback and explain the ground-truth feedback loop.
 6. Open the MLOps screen and show model metadata, drift status, and tool links.
 7. Open API docs at `http://localhost:8000/docs`.
-8. Show Airflow at `http://localhost:8080` and the `sentiment_training_pipeline` DAG.
-9. Show MLflow at `http://localhost:5000` and the registered `ProductReviewSentimentModel`.
-10. Show Prometheus at `http://localhost:9090` and Grafana at `http://localhost:3000`.
-11. Run `dvc dag` or open `dvc.yaml` to explain reproducibility.
-12. Show `docs/test_report.md` and explain acceptance criteria.
+8. Open `reports/model_comparison.md` and explain candidate comparison plus promotion rule.
+9. Show Airflow at `http://localhost:8080` and the `sentiment_training_pipeline` DAG.
+10. Show MLflow at `http://localhost:5000`, compare the candidate runs, and open the registered `ProductReviewSentimentModel`.
+11. Show Prometheus at `http://localhost:9090` and Grafana at `http://localhost:3000`.
+12. Run `dvc dag` or open `dvc.yaml` to explain reproducibility.
+13. Show `docs/test_report.md` and explain acceptance criteria.
 
 ## Key Lines To Say
 
 - The model is intentionally lightweight because the project is graded on MLOps completeness and local reproducibility.
 - Airflow gives visual orchestration; DVC gives reproducibility and artifact versioning.
 - MLflow connects every model to metrics, parameters, artifacts, and run ID.
+- The selected model is promoted by a documented comparison rule, not chosen manually.
 - The frontend and backend are loosely coupled through REST APIs only.
 - Prometheus and Grafana monitor latency, errors, prediction distribution, model loaded state, feedback, and drift.
-

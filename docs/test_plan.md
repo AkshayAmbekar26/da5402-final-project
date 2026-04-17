@@ -17,15 +17,16 @@ Testing covers data quality, ML pipeline utilities, API contracts, monitoring ou
 | T07 | Pipeline | Text cleaning | Whitespace normalized |
 | T08 | Pipeline | Baseline statistics | Text, label, rating, and TF-IDF stats are generated |
 | T09 | Preprocessing | Rejected-row audit | Filtered rows are written with rejection reasons |
-| T10 | Monitoring | Distribution drift utility | Identical distributions produce zero delta |
-| T11 | API | `/health` | Returns HTTP 200 and service status |
-| T12 | API | `/ready` | Returns model loaded/fallback state |
-| T13 | API | `/predict` | Returns sentiment, confidence, probabilities, explanation, model metadata, and latency |
-| T14 | API | `/feedback` | Stores ground-truth feedback |
-| T15 | API | `/metrics` | Exposes Prometheus metrics |
-| T16 | Frontend | React build | Production bundle builds successfully |
-| T17 | Docker | Compose config | Docker Compose validates service graph |
-| T18 | DVC | `dvc repro` | Reproduces lifecycle pipeline |
+| T10 | Training | Model selection rule | Best accepted model is selected by validation macro F1 |
+| T11 | Monitoring | Distribution drift utility | Identical distributions produce zero delta |
+| T12 | API | `/health` | Returns HTTP 200 and service status |
+| T13 | API | `/ready` | Returns model loaded/fallback state |
+| T14 | API | `/predict` | Returns sentiment, confidence, probabilities, explanation, model metadata, and latency |
+| T15 | API | `/feedback` | Stores ground-truth feedback |
+| T16 | API | `/metrics` | Exposes Prometheus metrics |
+| T17 | Frontend | React build | Production bundle builds successfully |
+| T18 | Docker | Compose config | Docker Compose validates service graph |
+| T19 | DVC | `dvc repro` | Reproduces lifecycle pipeline |
 
 ## Acceptance Criteria
 
@@ -35,6 +36,7 @@ Testing covers data quality, ML pipeline utilities, API contracts, monitoring ou
 - `dvc repro` produces raw data, EDA artifacts, processed splits, baselines, model artifacts, evaluation, drift report, and pipeline report.
 - `/predict` responds under `200 ms` for the baseline model on typical local hardware.
 - MLflow contains the training run and model artifacts.
+- MLflow contains multiple candidate runs and a selected model run.
 - Airflow has a successful DAG run for `sentiment_training_pipeline`.
 - Grafana dashboard shows live Prometheus metrics.
 

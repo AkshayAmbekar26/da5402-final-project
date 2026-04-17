@@ -14,7 +14,7 @@ The primary dataset is `SetFit/amazon_reviews_multi_en`, an English Amazon revie
 
 ## Why TF-IDF + Logistic Regression
 
-It is fast, explainable, reproducible, and suitable for local hardware. It supports latency under 200 ms and lets us show influential words. A transformer can be added later but is not necessary for the rubric.
+It is fast, explainable, reproducible, and suitable for local hardware. The training pipeline now compares multiple TF-IDF-based candidates in MLflow and promotes the best candidate using a documented rule: highest validation macro F1 among models that also pass test macro F1 and latency gates. A transformer can be added later but is not necessary for the rubric.
 
 ## MLOps Tool Choices
 

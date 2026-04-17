@@ -71,8 +71,11 @@ stages:
       - models/sentiment_model.joblib
       - models/model_metadata.json
       - models/feature_importance.json
+      - reports/model_comparison.md
     metrics:
       - reports/training_metrics.json:
+          cache: false
+      - reports/model_comparison.json:
           cache: false
 
   evaluate:
@@ -104,6 +107,7 @@ stages:
       - reports/preprocessing_report.json
       - reports/feature_baseline_report.json
       - reports/training_metrics.json
+      - reports/model_comparison.json
       - reports/evaluation.json
       - reports/drift_report.json
       - ml/monitoring/publish_report.py

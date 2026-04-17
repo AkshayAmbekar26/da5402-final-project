@@ -16,14 +16,19 @@ EDA produces JSON, Markdown, and chart artifacts covering row counts, missing va
 
 MLflow logs:
 
+- One run per candidate model
 - Model type and hyperparameters
 - Validation and test metrics
 - Macro F1, accuracy, and latency benchmark
+- Model size for the selected model
 - Feature importance artifact
 - Evaluation report
+- Model comparison report
 - Git commit hash
 - DVC data state
 - Registered model name: `ProductReviewSentimentModel`
+
+Model selection uses a documented promotion rule: choose the candidate with the highest validation macro F1 among models where test macro F1 is at least `0.75` and latency is below `200 ms`. If no candidate passes, the report records that no model passed and selects the highest validation macro F1 candidate for inspection rather than silently promoting a weak model.
 
 ## Reproducibility
 

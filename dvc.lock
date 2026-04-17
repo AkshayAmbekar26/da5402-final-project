@@ -117,8 +117,8 @@ stages:
       size: 582736
     - path: ml/training/train.py
       hash: md5
-      md5: 6eaf0d54be2ad544938e29a5f2544cac
-      size: 8643
+      md5: 097cdc3c5bee869ed1f2a16188f012b6
+      size: 16248
     outs:
     - path: models/feature_importance.json
       hash: md5
@@ -126,16 +126,24 @@ stages:
       size: 5516
     - path: models/model_metadata.json
       hash: md5
-      md5: f4753c71cfd8007c1d502c79bd4d12d9
-      size: 590
+      md5: e928895052aa2c74ad585ee7b40a2e85
+      size: 726
     - path: models/sentiment_model.joblib
       hash: md5
-      md5: 589968d71d0faf274bae2d682d5df48a
+      md5: 5b1d4aa2ba359e83704f8dc4ee076e36
       size: 5261972
+    - path: reports/model_comparison.json
+      hash: md5
+      md5: 52790b4c7564b27aa6de69ac812538ab
+      size: 16949
+    - path: reports/model_comparison.md
+      hash: md5
+      md5: 45d84a1ebe2543309deac75bb92c8d49
+      size: 856
     - path: reports/training_metrics.json
       hash: md5
-      md5: fcef6655c4081fd3818eb3a9c4fd63e6
-      size: 3866
+      md5: 941ea3e5384032c3bbae90a49efb0895
+      size: 24394
   evaluate:
     cmd: python -m ml.evaluation.evaluate
     deps:
@@ -149,13 +157,13 @@ stages:
       size: 1585
     - path: models/sentiment_model.joblib
       hash: md5
-      md5: 589968d71d0faf274bae2d682d5df48a
+      md5: 5b1d4aa2ba359e83704f8dc4ee076e36
       size: 5261972
     outs:
     - path: reports/evaluation.json
       hash: md5
-      md5: 46ab3031c4699f9ba197693da82ec04d
-      size: 1820
+      md5: d832a2ef0d56ad9d170b65cea57f9cc5
+      size: 1819
   drift:
     cmd: python -m ml.monitoring.drift
     deps:
@@ -181,8 +189,8 @@ stages:
     deps:
     - path: ml/monitoring/publish_report.py
       hash: md5
-      md5: 6e7ee7f62353fbac595e1e5da7a4f8e1
-      size: 851
+      md5: 3e2169175095f7dba6538e36d4fba821
+      size: 880
     - path: reports/data_validation.json
       hash: md5
       md5: 0d25f29399f71b0e1df5feb885e0a9de
@@ -197,8 +205,8 @@ stages:
       size: 5653
     - path: reports/evaluation.json
       hash: md5
-      md5: 46ab3031c4699f9ba197693da82ec04d
-      size: 1820
+      md5: d832a2ef0d56ad9d170b65cea57f9cc5
+      size: 1819
     - path: reports/feature_baseline_report.json
       hash: md5
       md5: 5f621d89b75cc09bfa9807a6c307dfff
@@ -207,19 +215,23 @@ stages:
       hash: md5
       md5: 902b01817f1c1366deec15efe493cbb4
       size: 777
+    - path: reports/model_comparison.json
+      hash: md5
+      md5: 52790b4c7564b27aa6de69ac812538ab
+      size: 16949
     - path: reports/preprocessing_report.json
       hash: md5
       md5: 1fb3f7031e4d8743043aa2f4f2578316
       size: 1403
     - path: reports/training_metrics.json
       hash: md5
-      md5: fcef6655c4081fd3818eb3a9c4fd63e6
-      size: 3866
+      md5: 941ea3e5384032c3bbae90a49efb0895
+      size: 24394
     outs:
     - path: reports/pipeline_report.json
       hash: md5
-      md5: 326913eb3056a86e1eb448507fc33592
-      size: 18322
+      md5: f570a9b1ba81cadef24b1653ab6782bf
+      size: 61209
   eda:
     cmd: python -m ml.eda.analyze --config configs/data_config.json
     deps:
