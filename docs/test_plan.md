@@ -12,24 +12,27 @@ Testing covers data quality, ML pipeline utilities, API contracts, monitoring ou
 | T02 | Data | Valid raw schema | Validation passes |
 | T03 | Data | Invalid rating | Validation fails with clear error |
 | T04 | Pipeline | Seed data generation | Balanced classes and required columns |
-| T05 | Pipeline | Text cleaning | Whitespace normalized |
-| T06 | Pipeline | Baseline statistics | Text, label, rating, and TF-IDF stats are generated |
-| T07 | Monitoring | Distribution drift utility | Identical distributions produce zero delta |
-| T08 | API | `/health` | Returns HTTP 200 and service status |
-| T09 | API | `/ready` | Returns model loaded/fallback state |
-| T10 | API | `/predict` | Returns sentiment, confidence, probabilities, explanation, model metadata, and latency |
-| T11 | API | `/feedback` | Stores ground-truth feedback |
-| T12 | API | `/metrics` | Exposes Prometheus metrics |
-| T13 | Frontend | React build | Production bundle builds successfully |
-| T14 | Docker | Compose config | Docker Compose validates service graph |
-| T15 | DVC | `dvc repro` | Reproduces lifecycle pipeline |
+| T05 | Ingestion | Hugging Face schema mapping | Source row maps to canonical project schema |
+| T06 | EDA | EDA report generation | JSON, Markdown, and chart artifacts are generated |
+| T07 | Pipeline | Text cleaning | Whitespace normalized |
+| T08 | Pipeline | Baseline statistics | Text, label, rating, and TF-IDF stats are generated |
+| T09 | Preprocessing | Rejected-row audit | Filtered rows are written with rejection reasons |
+| T10 | Monitoring | Distribution drift utility | Identical distributions produce zero delta |
+| T11 | API | `/health` | Returns HTTP 200 and service status |
+| T12 | API | `/ready` | Returns model loaded/fallback state |
+| T13 | API | `/predict` | Returns sentiment, confidence, probabilities, explanation, model metadata, and latency |
+| T14 | API | `/feedback` | Stores ground-truth feedback |
+| T15 | API | `/metrics` | Exposes Prometheus metrics |
+| T16 | Frontend | React build | Production bundle builds successfully |
+| T17 | Docker | Compose config | Docker Compose validates service graph |
+| T18 | DVC | `dvc repro` | Reproduces lifecycle pipeline |
 
 ## Acceptance Criteria
 
 - `pytest` passes.
 - `npm run build` passes for the frontend.
 - `docker compose config` validates.
-- `dvc repro` produces data, baselines, model artifacts, evaluation, drift report, and pipeline report.
+- `dvc repro` produces raw data, EDA artifacts, processed splits, baselines, model artifacts, evaluation, drift report, and pipeline report.
 - `/predict` responds under `200 ms` for the baseline model on typical local hardware.
 - MLflow contains the training run and model artifacts.
 - Airflow has a successful DAG run for `sentiment_training_pipeline`.
@@ -43,4 +46,3 @@ Testing covers data quality, ML pipeline utilities, API contracts, monitoring ou
 | Fill during demo prep | `npm run build` |  |  |  |  |
 | Fill during demo prep | `dvc repro` |  |  |  |  |
 | Fill during demo prep | `docker compose config` |  |  |  |  |
-

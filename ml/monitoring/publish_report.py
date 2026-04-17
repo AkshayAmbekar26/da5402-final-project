@@ -5,6 +5,7 @@ from ml.common import REPORTS, read_json, utc_now, write_json
 REPORT_FILES = [
     "ingestion_report.json",
     "data_validation.json",
+    "eda_report.json",
     "preprocessing_report.json",
     "feature_baseline_report.json",
     "training_metrics.json",
@@ -31,4 +32,3 @@ def publish_pipeline_report() -> dict[str, object]:
 
 if __name__ == "__main__":
     publish_pipeline_report()
-

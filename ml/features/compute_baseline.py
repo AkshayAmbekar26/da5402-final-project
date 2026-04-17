@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 from ml.common import DATA_BASELINES, DATA_PROCESSED, REPORTS, ensure_dirs, write_json
 
@@ -21,6 +21,14 @@ def compute_baseline(
     matrix = vectorizer.fit_transform(df["review_text"].astype(str))
     feature_means = matrix.mean(axis=0).A1
     feature_names = vectorizer.get_feature_names_out()
+    count_vectorizer = CountVectorizer(stop_words="english", ngram_range=(1, 2), max_features=100)
+    count_matrix = count_vectorizer.fit_transform(df["review_text"].astype(str))
+    term_counts = count_matrix.sum(axis=0).A1
+    count_features = count_vectorizer.get_feature_names_out()
+    top_terms = sorted(zip(count_features, term_counts, strict=False), key=lambda item: item[1], reverse=True)[:25]
+    sentiment_counts = df["sentiment"].value_counts().to_dict()
+    rating_counts = df["rating"].value_counts().sort_index().to_dict()
+    total_rows = max(1, len(df))
 
     baseline = {
         "stage": "compute_drift_baseline",
@@ -30,13 +38,24 @@ def compute_baseline(
             "variance": float(text_lengths.var()),
             "min": int(text_lengths.min()),
             "max": int(text_lengths.max()),
+            "median": float(text_lengths.median()),
+            "p95": float(text_lengths.quantile(0.95)),
+            "p99": float(text_lengths.quantile(0.99)),
         },
         "sentiment_distribution": {
-            str(key): int(value) for key, value in df["sentiment"].value_counts().to_dict().items()
+            str(key): int(value) for key, value in sentiment_counts.items()
+        },
+        "sentiment_priors": {
+            str(key): float(value / total_rows) for key, value in sentiment_counts.items()
         },
         "rating_distribution": {
-            str(key): int(value) for key, value in df["rating"].value_counts().to_dict().items()
+            str(key): int(value) for key, value in rating_counts.items()
         },
+        "rating_priors": {
+            str(key): float(value / total_rows) for key, value in rating_counts.items()
+        },
+        "vocabulary_size": int(len(count_vectorizer.vocabulary_)),
+        "top_terms": [{"term": str(term), "count": int(count)} for term, count in top_terms],
         "tfidf_feature_means": {
             str(name): float(value) for name, value in zip(feature_names, feature_means, strict=False)
         },

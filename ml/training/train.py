@@ -31,6 +31,7 @@ from ml.common import (
     dvc_data_version,
     ensure_dirs,
     git_commit_hash,
+    read_json,
     utc_now,
     write_json,
 )
@@ -80,10 +81,23 @@ def train(
 
     model = Pipeline(
         steps=[
-            ("tfidf", TfidfVectorizer(max_features=2500, ngram_range=(1, 2), stop_words="english")),
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    max_features=80000,
+                    ngram_range=(1, 3),
+                    min_df=1,
+                    sublinear_tf=True,
+                ),
+            ),
             (
                 "classifier",
-                LogisticRegression(max_iter=1000, class_weight="balanced", random_state=RANDOM_SEED),
+                LogisticRegression(
+                    max_iter=2000,
+                    C=3.0,
+                    class_weight="balanced",
+                    random_state=RANDOM_SEED,
+                ),
             ),
         ]
     )
@@ -141,8 +155,11 @@ def train(
         mlflow.log_params(
             {
                 "model_type": "tfidf_logistic_regression",
-                "max_features": 2500,
-                "ngram_range": "1,2",
+                "max_features": 80000,
+                "ngram_range": "1,3",
+                "min_df": 1,
+                "sublinear_tf": True,
+                "C": 3.0,
                 "class_weight": "balanced",
                 "random_seed": RANDOM_SEED,
             }
@@ -164,6 +181,41 @@ def train(
         )
         mlflow.log_artifact(str(evaluation_path))
         mlflow.log_artifact(str(importance_path))
+        for artifact_name in [
+            "ingestion_report.json",
+            "data_validation.json",
+            "eda_report.json",
+            "eda_report.md",
+            "preprocessing_report.json",
+            "feature_baseline_report.json",
+        ]:
+            artifact_path = REPORTS / artifact_name
+            if artifact_path.exists():
+                mlflow.log_artifact(str(artifact_path), artifact_path="data_quality")
+        figures_dir = REPORTS / "figures"
+        if figures_dir.exists():
+            for figure_path in figures_dir.glob("*.png"):
+                mlflow.log_artifact(str(figure_path), artifact_path="eda_figures")
+        ingestion_report_path = REPORTS / "ingestion_report.json"
+        preprocessing_report_path = REPORTS / "preprocessing_report.json"
+        if ingestion_report_path.exists():
+            ingestion_report = read_json(ingestion_report_path)
+            mlflow.log_params(
+                {
+                    "dataset_name": ingestion_report.get("dataset_name", "unknown"),
+                    "dataset_rows": ingestion_report.get("rows", 0),
+                    "dataset_fallback_used": ingestion_report.get("fallback_used", False),
+                }
+            )
+        if preprocessing_report_path.exists():
+            preprocessing_report = read_json(preprocessing_report_path)
+            mlflow.log_params(
+                {
+                    "train_rows": preprocessing_report.get("splits", {}).get("train", 0),
+                    "validation_rows": preprocessing_report.get("splits", {}).get("validation", 0),
+                    "test_rows": preprocessing_report.get("splits", {}).get("test", 0),
+                }
+            )
         mlflow.sklearn.log_model(model, artifact_path="model", registered_model_name="ProductReviewSentimentModel")
 
     return result
@@ -180,4 +232,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

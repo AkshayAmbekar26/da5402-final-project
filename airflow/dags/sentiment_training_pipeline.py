@@ -29,17 +29,22 @@ with DAG(
 ) as dag:
     ingest_data = BashOperator(
         task_id="ingest_data",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.data_ingestion.ingest",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.data_ingestion.ingest --config configs/data_config.json",
     )
 
     validate_raw_data = BashOperator(
         task_id="validate_raw_data",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.validation.validate_data",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.validation.validate_data --config configs/data_config.json",
+    )
+
+    run_eda = BashOperator(
+        task_id="run_eda",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.eda.analyze --config configs/data_config.json",
     )
 
     preprocess_data = BashOperator(
         task_id="preprocess_data",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.preprocessing.preprocess",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.preprocessing.preprocess --config configs/data_config.json",
     )
 
     generate_features = BashOperator(
@@ -80,6 +85,7 @@ with DAG(
     (
         ingest_data
         >> validate_raw_data
+        >> run_eda
         >> preprocess_data
         >> generate_features
         >> compute_drift_baseline
@@ -89,4 +95,3 @@ with DAG(
         >> run_batch_drift_check
         >> publish_pipeline_report
     )
-

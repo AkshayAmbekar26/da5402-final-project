@@ -17,6 +17,7 @@ data/baselines/*.json
 models/*.joblib
 models/*.json
 reports/*.json
+reports/*.md
 reports/*.png
 feedback/*.jsonl
 logs/*.log

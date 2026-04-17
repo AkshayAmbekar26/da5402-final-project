@@ -8,7 +8,9 @@
 
 ## Data Engineering
 
-The pipeline ingests e-commerce review data into a standard schema, validates it, cleans it, and creates deterministic train/validation/test splits. The Airflow DAG gives a visual orchestration console and DVC gives reproducible local execution.
+The pipeline ingests `SetFit/amazon_reviews_multi_en` into a standard schema, validates it, runs EDA, cleans it, and creates deterministic train/validation/test splits. The Airflow DAG gives a visual orchestration console and DVC gives reproducible local execution.
+
+EDA produces JSON, Markdown, and chart artifacts covering row counts, missing values, duplicate text, class distribution, rating distribution, text-length statistics, top tokens, and dataset limitation notes.
 
 ## Experiment Tracking
 
@@ -62,7 +64,6 @@ Deployment uses Docker Compose with separate frontend and backend services. Mode
 
 ## Current Incomplete Items
 
-- The default dataset is a local seed dataset shaped like public Amazon review data so the demo is offline-safe.
+- The local seed dataset remains as a fallback so the demo is offline-safe if Hugging Face access fails.
 - A transformer model is intentionally optional because the local baseline gives lower latency and easier explainability.
 - Authentication and TLS are documented as production requirements but not enabled for the local course demo.
-

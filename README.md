@@ -1,6 +1,6 @@
 # Product Review Sentiment Analyzer with MLOps
 
-This project is a local, end-to-end AI application for classifying e-commerce product reviews as `positive`, `neutral`, or `negative`. It is intentionally built around MLOps evidence: DVC pipelines, Airflow orchestration, MLflow tracking, FastAPI serving, React UI, Prometheus/Grafana monitoring, Docker Compose packaging, CI, and documentation.
+This project is a local, end-to-end AI application for classifying e-commerce product reviews as `positive`, `neutral`, or `negative`. It uses `SetFit/amazon_reviews_multi_en` as the primary public dataset, with a local seed fallback for offline demos. It is intentionally built around MLOps evidence: DVC pipelines, Airflow orchestration, MLflow tracking, FastAPI serving, React UI, Prometheus/Grafana monitoring, Docker Compose packaging, CI, and documentation.
 
 ## Quick Start
 
@@ -10,6 +10,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 python -m ml.data_ingestion.ingest
 python -m ml.validation.validate_data
+python -m ml.eda.analyze
 python -m ml.preprocessing.preprocess
 python -m ml.features.compute_baseline
 python -m ml.training.train
@@ -46,8 +47,8 @@ docker compose up --build
 
 - `dvc.yaml` defines a reproducible lifecycle DAG.
 - `airflow/dags/sentiment_training_pipeline.py` exposes the same lifecycle in Airflow.
+- `docs/data_card.md` documents dataset source, label mapping, limitations, and preprocessing.
 - `MLproject` supports reproducible MLflow project runs.
 - `apps/api` exposes health, readiness, prediction, feedback, metrics, and model metadata APIs.
 - `infra/prometheus` and `infra/grafana` provide monitoring and alerting.
 - `docs/` contains HLD, LLD, architecture, test plan, user manual, MLOps report, and viva notes.
-

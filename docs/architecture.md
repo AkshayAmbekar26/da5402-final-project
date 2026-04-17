@@ -57,7 +57,8 @@ flowchart TB
 ```mermaid
 flowchart LR
   Raw["Raw reviews"] --> Validate["Schema and quality validation"]
-  Validate --> Split["Train/validation/test split"]
+  Validate --> EDA["EDA reports and charts"]
+  EDA --> Split["Train/validation/test split"]
   Split --> Baseline["Drift baseline statistics"]
   Split --> Train["TF-IDF + Logistic Regression"]
   Train --> Evaluate["Metrics and acceptance gate"]
@@ -69,4 +70,3 @@ flowchart LR
 ## Security Notes
 
 The submitted project is local-only and contains no private customer data. Secrets are kept out of Git through `.env` and `.env.example`. Production-like deployment would require TLS, authenticated service endpoints, encrypted artifact storage, and stricter access control around Airflow, MLflow, and Grafana.
-

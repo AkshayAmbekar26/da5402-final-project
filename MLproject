@@ -3,11 +3,12 @@ name: product-review-sentiment-mlops
 entry_points:
   main:
     parameters:
-      rows_per_class: {type: int, default: 30}
+      config_path: {type: str, default: "configs/data_config.json"}
     command: >
-      python -m ml.data_ingestion.ingest --rows-per-class {rows_per_class} &&
-      python -m ml.validation.validate_data &&
-      python -m ml.preprocessing.preprocess &&
+      python -m ml.data_ingestion.ingest --config {config_path} &&
+      python -m ml.validation.validate_data --config {config_path} &&
+      python -m ml.eda.analyze --config {config_path} &&
+      python -m ml.preprocessing.preprocess --config {config_path} &&
       python -m ml.features.compute_baseline &&
       python -m ml.training.train &&
       python -m ml.evaluation.evaluate &&
@@ -16,4 +17,3 @@ entry_points:
 
   train:
     command: python -m ml.training.train
-

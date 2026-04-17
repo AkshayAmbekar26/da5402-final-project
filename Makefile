@@ -1,4 +1,4 @@
-.PHONY: setup ingest validate preprocess baseline train evaluate drift dvc-repro test api frontend up down demo lint
+.PHONY: setup ingest validate eda preprocess baseline train evaluate drift dvc-repro test api frontend up down demo lint
 
 setup:
 	python3 -m venv .venv
@@ -9,6 +9,9 @@ ingest:
 
 validate:
 	python -m ml.validation.validate_data
+
+eda:
+	python -m ml.eda.analyze
 
 preprocess:
 	python -m ml.preprocessing.preprocess
@@ -46,6 +49,5 @@ up:
 down:
 	docker compose down
 
-demo: ingest validate preprocess baseline train evaluate drift
+demo: ingest validate eda preprocess baseline train evaluate drift
 	@echo "Demo artifacts are ready. Run 'make api' and 'make frontend' in separate terminals."
-

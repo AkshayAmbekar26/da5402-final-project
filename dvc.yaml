@@ -1,7 +1,8 @@
 stages:
   ingest:
-    cmd: python -m ml.data_ingestion.ingest --rows-per-class 30
+    cmd: python -m ml.data_ingestion.ingest --config configs/data_config.json
     deps:
+      - configs/data_config.json
       - ml/data_ingestion/ingest.py
       - ml/common.py
     outs:
@@ -11,20 +12,36 @@ stages:
           cache: false
 
   validate:
-    cmd: python -m ml.validation.validate_data
+    cmd: python -m ml.validation.validate_data --config configs/data_config.json
     deps:
+      - configs/data_config.json
       - data/raw/reviews.csv
       - ml/validation/validate_data.py
     metrics:
       - reports/data_validation.json:
           cache: false
 
-  preprocess:
-    cmd: python -m ml.preprocessing.preprocess
+  eda:
+    cmd: python -m ml.eda.analyze --config configs/data_config.json
     deps:
+      - configs/data_config.json
+      - data/raw/reviews.csv
+      - ml/eda/analyze.py
+    outs:
+      - reports/eda_report.md
+      - reports/figures
+    metrics:
+      - reports/eda_report.json:
+          cache: false
+
+  preprocess:
+    cmd: python -m ml.preprocessing.preprocess --config configs/data_config.json
+    deps:
+      - configs/data_config.json
       - data/raw/reviews.csv
       - ml/preprocessing/preprocess.py
     outs:
+      - data/interim/rejected_reviews.csv
       - data/processed/train.csv
       - data/processed/validation.csv
       - data/processed/test.csv
@@ -83,6 +100,7 @@ stages:
     deps:
       - reports/ingestion_report.json
       - reports/data_validation.json
+      - reports/eda_report.json
       - reports/preprocessing_report.json
       - reports/feature_baseline_report.json
       - reports/training_metrics.json
@@ -92,4 +110,3 @@ stages:
     metrics:
       - reports/pipeline_report.json:
           cache: false
-
