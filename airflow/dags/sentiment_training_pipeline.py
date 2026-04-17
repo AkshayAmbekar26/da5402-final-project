@@ -57,8 +57,8 @@ with DAG(
         bash_command=f"cd {PROJECT_DIR} && test -f data/baselines/feature_baseline.json",
     )
 
-    train_model = BashOperator(
-        task_id="train_model",
+    train_and_compare_models = BashOperator(
+        task_id="train_and_compare_models",
         bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.training.train",
     )
 
@@ -89,7 +89,7 @@ with DAG(
         >> preprocess_data
         >> generate_features
         >> compute_drift_baseline
-        >> train_model
+        >> train_and_compare_models
         >> evaluate_model
         >> register_model_if_accepted
         >> run_batch_drift_check

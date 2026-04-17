@@ -228,6 +228,22 @@ function OpsScreen() {
   const metrics = summary?.evaluation?.metrics || summary?.evaluation?.test || {};
   const drift = summary?.drift || {};
   const model = summary?.model?.metadata || {};
+  const ingestion = summary?.ingestion || {};
+  const preprocessing = summary?.preprocessing || {};
+  const comparison = summary?.model_comparison || {};
+  const performance = summary?.pipeline_performance || {};
+  const pipelineSummary = summary?.pipeline_summary || {};
+  const stages = [
+    ['ingest', 'ingest_data'],
+    ['validate', 'validate_raw_data'],
+    ['eda', 'run_eda'],
+    ['preprocess', 'preprocess_data'],
+    ['baseline', 'compute_drift_baseline'],
+    ['compare', 'train_and_compare_models'],
+    ['evaluate', 'evaluate_selected_model'],
+    ['drift', 'run_batch_drift_check'],
+    ['publish', 'publish_pipeline_report'],
+  ];
 
   return (
     <main className="workspace ops-layout">
@@ -236,6 +252,13 @@ function OpsScreen() {
         <StatusTile icon={<CheckCircle2 />} label="Model" value={summary?.model?.model_loaded ? 'Loaded' : 'Fallback'} tone={summary?.model?.model_loaded ? 'positive' : 'warning'} />
         <StatusTile icon={<BarChart3 />} label="Macro F1" value={formatMetric(metrics.macro_f1)} tone="neutral" />
         <StatusTile icon={<AlertTriangle />} label="Drift" value={drift.drift_detected ? 'Detected' : 'Normal'} tone={drift.drift_detected ? 'warning' : 'positive'} />
+      </section>
+
+      <section className="status-strip">
+        <StatusTile icon={<BarChart3 />} label="Raw rows" value={formatInteger(ingestion.rows || pipelineSummary.raw_rows)} tone="neutral" />
+        <StatusTile icon={<CheckCircle2 />} label="Processed" value={formatInteger(preprocessing.final_rows || pipelineSummary.processed_rows)} tone="positive" />
+        <StatusTile icon={<AlertTriangle />} label="Rejected" value={formatInteger(preprocessing.rejected_rows || pipelineSummary.rejected_rows)} tone={(preprocessing.rejected_rows || 0) > 0 ? 'warning' : 'positive'} />
+        <StatusTile icon={<Gauge />} label="Pipeline" value={formatSeconds(performance.total_duration_seconds || pipelineSummary.total_duration_seconds)} tone="neutral" />
       </section>
 
       <section className="panel">
@@ -251,11 +274,11 @@ function OpsScreen() {
         </div>
         {error && <p className="error-text">{error}</p>}
         <div className="timeline">
-          {['ingest', 'validate', 'preprocess', 'baseline', 'train', 'evaluate', 'drift', 'deploy'].map((stage, index) => (
+          {stages.map(([stage, performanceKey], index) => (
             <div className="timeline-item" key={stage}>
               <span>{index + 1}</span>
               <strong>{stage}</strong>
-              <small>{index < 7 ? 'automated' : 'served'}</small>
+              <small>{formatStage(performance?.stages?.[performanceKey])}</small>
             </div>
           ))}
         </div>
@@ -269,6 +292,28 @@ function OpsScreen() {
             <dt>Version</dt><dd>{model.model_version || 'fallback'}</dd>
             <dt>MLflow run</dt><dd>{model.mlflow_run_id || 'unavailable'}</dd>
             <dt>Git commit</dt><dd>{model.git_commit || 'unavailable'}</dd>
+            <dt>DVC version</dt><dd>{shortText(model.data_version, 32)}</dd>
+          </dl>
+        </div>
+        <div className="panel">
+          <h2>Model comparison</h2>
+          <dl className="info-list">
+            <dt>Selected</dt><dd>{comparison.selected_candidate || model.model_name || 'not available'}</dd>
+            <dt>Candidates</dt><dd>{formatInteger((comparison.candidates || []).length || pipelineSummary.candidate_count)}</dd>
+            <dt>Accepted</dt><dd>{formatInteger((comparison.accepted_candidates || []).length)}</dd>
+            <dt>Test F1</dt><dd>{formatMetric(metrics.macro_f1)}</dd>
+          </dl>
+        </div>
+      </section>
+
+      <section className="ops-grid">
+        <div className="panel">
+          <h2>Dataset run</h2>
+          <dl className="info-list">
+            <dt>Dataset</dt><dd>{ingestion.dataset_name || pipelineSummary.dataset_name || 'not available'}</dd>
+            <dt>Fallback</dt><dd>{String(ingestion.fallback_used ?? false)}</dd>
+            <dt>EDA rows</dt><dd>{formatInteger(summary?.eda?.rows)}</dd>
+            <dt>Warnings</dt><dd>{formatInteger((summary?.validation?.warnings || []).length)}</dd>
           </dl>
         </div>
         <div className="panel">
@@ -311,5 +356,27 @@ function formatMetric(value) {
   return value.toFixed(3);
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+function formatInteger(value) {
+  if (typeof value !== 'number') return 'n/a';
+  return new Intl.NumberFormat().format(value);
+}
 
+function formatSeconds(value) {
+  if (typeof value !== 'number') return 'n/a';
+  if (value < 1) return `${Math.round(value * 1000)} ms`;
+  return `${value.toFixed(1)} s`;
+}
+
+function formatStage(stage) {
+  if (!stage) return 'pending';
+  const throughput = stage.throughput_rows_per_second;
+  if (typeof throughput === 'number') return `${formatSeconds(stage.duration_seconds)} · ${Math.round(throughput)}/s`;
+  return formatSeconds(stage.duration_seconds);
+}
+
+function shortText(value, length) {
+  if (!value) return 'unavailable';
+  return value.length > length ? `${value.slice(0, length)}...` : value;
+}
+
+createRoot(document.getElementById('root')).render(<App />);

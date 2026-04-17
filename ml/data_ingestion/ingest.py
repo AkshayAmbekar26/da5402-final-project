@@ -17,6 +17,7 @@ from ml.common import (
     utc_now,
     write_json,
 )
+from ml.monitoring.performance import timed_stage
 
 POSITIVE_REVIEWS = [
     "Excellent quality and the delivery was faster than expected.",
@@ -162,55 +163,58 @@ def load_data_config(config_path: Path) -> dict[str, Any]:
 
 
 def ingest(config_path: Path = ROOT / "configs" / "data_config.json") -> pd.DataFrame:
-    ensure_dirs()
-    config = load_data_config(config_path)
-    fallback_used = False
-    ingestion_error = None
-    try:
-        df, source_metadata = load_huggingface_reviews(config)
-    except Exception as exc:
-        if not bool(config.get("fallback_to_seed_data", True)):
-            raise
-        fallback_used = True
-        ingestion_error = str(exc)
-        df = build_seed_dataset(rows_per_class=int(config.get("seed_rows_per_class", 300)))
-        source_metadata = {
-            "dataset_name": "local_seed_ecommerce_reviews",
-            "dataset_split": "generated",
-            "source_rows_seen": int(len(df)),
-            "rows_filtered_during_ingestion": 0,
-            "source_homepage": "local fallback",
-        }
+    with timed_stage("ingest_data") as perf:
+        ensure_dirs()
+        config = load_data_config(config_path)
+        fallback_used = False
+        ingestion_error = None
+        try:
+            df, source_metadata = load_huggingface_reviews(config)
+        except Exception as exc:
+            if not bool(config.get("fallback_to_seed_data", True)):
+                raise
+            fallback_used = True
+            ingestion_error = str(exc)
+            df = build_seed_dataset(rows_per_class=int(config.get("seed_rows_per_class", 300)))
+            source_metadata = {
+                "dataset_name": "local_seed_ecommerce_reviews",
+                "dataset_split": "generated",
+                "source_rows_seen": int(len(df)),
+                "rows_filtered_during_ingestion": 0,
+                "source_homepage": "local fallback",
+            }
 
-    df["sentiment"] = df["rating"].map(rating_to_sentiment)
-    output_path = DATA_RAW / "reviews.csv"
-    df.to_csv(output_path, index=False)
-    write_json(
-        REPORTS / "ingestion_report.json",
-        {
-            "stage": "ingest_data",
-            "status": "success",
-            "dataset_name": source_metadata["dataset_name"],
-            "dataset_split": source_metadata["dataset_split"],
-            "source_homepage": source_metadata.get("source_homepage"),
-            "source_rows_seen": int(source_metadata["source_rows_seen"]),
-            "rows_after_schema_mapping": int(len(df)),
-            "rows_after_quality_filters": int(len(df)),
-            "rows": int(len(df)),
-            "class_distribution": {
-                str(key): int(value) for key, value in df["sentiment"].value_counts().to_dict().items()
+        df["sentiment"] = df["rating"].map(rating_to_sentiment)
+        output_path = DATA_RAW / "reviews.csv"
+        df.to_csv(output_path, index=False)
+        perf["rows_processed"] = int(source_metadata["source_rows_seen"])
+        perf["extra"] = {"output_rows": int(len(df)), "fallback_used": fallback_used}
+        write_json(
+            REPORTS / "ingestion_report.json",
+            {
+                "stage": "ingest_data",
+                "status": "success",
+                "dataset_name": source_metadata["dataset_name"],
+                "dataset_split": source_metadata["dataset_split"],
+                "source_homepage": source_metadata.get("source_homepage"),
+                "source_rows_seen": int(source_metadata["source_rows_seen"]),
+                "rows_after_schema_mapping": int(len(df)),
+                "rows_after_quality_filters": int(len(df)),
+                "rows": int(len(df)),
+                "class_distribution": {
+                    str(key): int(value) for key, value in df["sentiment"].value_counts().to_dict().items()
+                },
+                "rating_distribution": {
+                    str(key): int(value) for key, value in df["rating"].value_counts().sort_index().to_dict().items()
+                },
+                "fallback_used": fallback_used,
+                "fallback_error": ingestion_error,
+                "output_path": str(output_path),
+                "source": source_metadata["dataset_name"],
+                "ingested_at": utc_now(),
             },
-            "rating_distribution": {
-                str(key): int(value) for key, value in df["rating"].value_counts().sort_index().to_dict().items()
-            },
-            "fallback_used": fallback_used,
-            "fallback_error": ingestion_error,
-            "output_path": str(output_path),
-            "source": source_metadata["dataset_name"],
-            "ingested_at": utc_now(),
-        },
-    )
-    return df
+        )
+        return df
 
 
 def main() -> None:

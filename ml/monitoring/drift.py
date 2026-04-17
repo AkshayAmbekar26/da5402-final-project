@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from time import perf_counter
 
 import pandas as pd
 
 from ml.common import DATA_BASELINES, DATA_PROCESSED, REPORTS, read_json, write_json
+from ml.monitoring.performance import record_stage_performance
 
 
 def distribution_delta(reference: dict[str, int], current: dict[str, int]) -> float:
@@ -21,6 +23,7 @@ def detect_drift(
     baseline_path: Path = DATA_BASELINES / "feature_baseline.json",
     current_path: Path = DATA_PROCESSED / "test.csv",
 ) -> dict[str, object]:
+    stage_start = perf_counter()
     baseline = read_json(baseline_path)
     current_df = pd.read_csv(current_path)
     current_lengths = current_df["review_text"].astype(str).str.len()
@@ -48,6 +51,12 @@ def detect_drift(
         "threshold": 0.25,
     }
     write_json(REPORTS / "drift_report.json", report)
+    record_stage_performance(
+        "run_batch_drift_check",
+        perf_counter() - stage_start,
+        rows_processed=len(current_df),
+        extra={"drift_detected": report["drift_detected"], "drift_score": report["drift_score"]},
+    )
     return report
 
 
@@ -61,4 +70,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

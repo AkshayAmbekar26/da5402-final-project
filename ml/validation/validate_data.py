@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from ml.common import DATA_RAW, REPORTS, ROOT, SENTIMENT_LABELS, ensure_dirs, read_json, write_json
+from ml.monitoring.performance import timed_stage
 
 REQUIRED_COLUMNS = ["review_id", "review_text", "rating", "sentiment", "source", "ingested_at"]
 
@@ -96,21 +97,24 @@ def validate_data(
     input_path: Path = DATA_RAW / "reviews.csv",
     config_path: Path = ROOT / "configs" / "data_config.json",
 ) -> dict[str, object]:
-    ensure_dirs()
-    config = read_json(config_path) if config_path.exists() else {}
-    df = pd.read_csv(input_path)
-    report = validate_dataframe(
-        df,
-        min_text_length=int(config.get("min_text_length", 20)),
-        max_text_length=int(config.get("max_text_length", 3000)),
-    )
-    report["stage"] = "validate_raw_data"
-    report["input_path"] = str(input_path)
-    report["config_path"] = str(config_path)
-    write_json(REPORTS / "data_validation.json", report)
-    if report["status"] != "success":
-        raise ValueError(f"Data validation failed: {report['errors']}")
-    return report
+    with timed_stage("validate_raw_data") as perf:
+        ensure_dirs()
+        config = read_json(config_path) if config_path.exists() else {}
+        df = pd.read_csv(input_path)
+        report = validate_dataframe(
+            df,
+            min_text_length=int(config.get("min_text_length", 20)),
+            max_text_length=int(config.get("max_text_length", 3000)),
+        )
+        report["stage"] = "validate_raw_data"
+        report["input_path"] = str(input_path)
+        report["config_path"] = str(config_path)
+        perf["rows_processed"] = int(len(df))
+        perf["extra"] = {"status": report["status"], "warning_count": len(report.get("warnings", []))}
+        write_json(REPORTS / "data_validation.json", report)
+        if report["status"] != "success":
+            raise ValueError(f"Data validation failed: {report['errors']}")
+        return report
 
 
 def main() -> None:

@@ -8,6 +8,7 @@ import joblib
 import pandas as pd
 
 from ml.common import DATA_PROCESSED, MODELS, REPORTS, ensure_dirs, write_json
+from ml.monitoring.performance import record_stage_performance
 from ml.training.train import evaluate_predictions
 
 
@@ -15,6 +16,7 @@ def evaluate(
     model_path: Path = MODELS / "sentiment_model.joblib",
     test_path: Path = DATA_PROCESSED / "test.csv",
 ) -> dict[str, object]:
+    stage_start = perf_counter()
     ensure_dirs()
     model = joblib.load(model_path)
     test_df = pd.read_csv(test_path)
@@ -34,6 +36,12 @@ def evaluate(
         "acceptance_threshold_macro_f1": 0.75,
     }
     write_json(REPORTS / "evaluation.json", report)
+    record_stage_performance(
+        "evaluate_selected_model",
+        perf_counter() - stage_start,
+        rows_processed=len(test_df),
+        extra={"accepted": report["accepted"], "macro_f1": metrics["macro_f1"]},
+    )
     return report
 
 
@@ -47,4 +55,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

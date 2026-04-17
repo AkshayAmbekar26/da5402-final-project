@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from time import perf_counter
 
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 from ml.common import DATA_BASELINES, DATA_PROCESSED, REPORTS, ensure_dirs, write_json
+from ml.monitoring.performance import record_stage_performance
 
 
 def compute_baseline(
@@ -14,6 +16,7 @@ def compute_baseline(
     baseline_output_path: Path = DATA_BASELINES / "feature_baseline.json",
     report_output_path: Path = REPORTS / "feature_baseline_report.json",
 ) -> dict[str, object]:
+    start = perf_counter()
     ensure_dirs()
     df = pd.read_csv(input_path)
     text_lengths = df["review_text"].astype(str).str.len()
@@ -70,6 +73,7 @@ def compute_baseline(
             "tracked_features": len(baseline["tfidf_feature_means"]),
         },
     )
+    record_stage_performance("compute_drift_baseline", perf_counter() - start, rows_processed=len(df))
     return baseline
 
 

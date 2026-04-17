@@ -51,3 +51,11 @@ def test_metrics_endpoint_exposes_prometheus_text() -> None:
     assert response.status_code == 200
     assert "sentiment_api_requests_total" in response.text
 
+
+def test_metrics_summary_includes_pipeline_sections() -> None:
+    response = client.get("/metrics-summary")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "pipeline_summary" in payload
+    assert "pipeline_performance" in payload
+    assert "model_comparison" in payload

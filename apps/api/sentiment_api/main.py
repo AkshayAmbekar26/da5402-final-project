@@ -126,8 +126,6 @@ def model_info() -> dict[str, object]:
 
 @app.get("/metrics-summary")
 def metrics_summary() -> dict[str, object]:
-    drift_path = "reports/drift_report.json"
-    evaluation_path = "reports/evaluation.json"
     summary: dict[str, object] = {
         "api": {"healthy": True, "ready": True},
         "model": model_service.info(),
@@ -138,7 +136,18 @@ def metrics_summary() -> dict[str, object]:
             "grafana": "http://localhost:3000",
         },
     }
-    for key, path in [("drift", drift_path), ("evaluation", evaluation_path)]:
+    report_map = {
+        "ingestion": "reports/ingestion_report.json",
+        "validation": "reports/data_validation.json",
+        "eda": "reports/eda_report.json",
+        "preprocessing": "reports/preprocessing_report.json",
+        "model_comparison": "reports/model_comparison.json",
+        "evaluation": "reports/evaluation.json",
+        "drift": "reports/drift_report.json",
+        "pipeline": "reports/pipeline_report.json",
+        "pipeline_performance": "reports/pipeline_performance.json",
+    }
+    for key, path in report_map.items():
         try:
             with open(path, encoding="utf-8") as handle:
                 summary[key] = json.load(handle)
@@ -146,6 +155,7 @@ def metrics_summary() -> dict[str, object]:
                     DRIFT_SCORE.set(float(summary[key].get("drift_score", 0)))
         except FileNotFoundError:
             summary[key] = {"status": "not_available"}
+    summary["pipeline_summary"] = summary.get("pipeline", {}).get("summary", {})
     return summary
 
 
@@ -157,4 +167,3 @@ def metrics() -> Response:
 @app.exception_handler(ValueError)
 async def value_error_handler(_: Request, exc: ValueError) -> JSONResponse:
     return JSONResponse(status_code=400, content={"detail": str(exc)})
-

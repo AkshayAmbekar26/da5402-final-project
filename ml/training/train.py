@@ -36,6 +36,7 @@ from ml.common import (
     utc_now,
     write_json,
 )
+from ml.monitoring.performance import record_stage_performance
 
 ACCEPTANCE_TEST_MACRO_F1 = 0.75
 ACCEPTANCE_LATENCY_MS = 200.0
@@ -351,6 +352,7 @@ def train(
     validation_path: Path = DATA_PROCESSED / "validation.csv",
     test_path: Path = DATA_PROCESSED / "test.csv",
 ) -> dict[str, object]:
+    stage_start = perf_counter()
     ensure_dirs()
     train_df = pd.read_csv(train_path)
     validation_df = pd.read_csv(validation_path)
@@ -424,6 +426,16 @@ def train(
             registered_model_name="ProductReviewSentimentModel",
         )
 
+    record_stage_performance(
+        "train_and_compare_models",
+        perf_counter() - stage_start,
+        rows_processed=len(train_df) + len(validation_df) + len(test_df),
+        extra={
+            "candidate_models": len(candidates),
+            "selected_candidate": str(selected["candidate_name"]),
+            "accepted_candidates": len([candidate for candidate in candidates if candidate["passes_acceptance"]]),
+        },
+    )
     return result
 
 

@@ -324,7 +324,7 @@ textarea:focus {
 
 .timeline {
   display: grid;
-  grid-template-columns: repeat(8, minmax(95px, 1fr));
+  grid-template-columns: repeat(9, minmax(105px, 1fr));
   gap: 10px;
   overflow-x: auto;
 }
@@ -421,4 +421,3 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
-

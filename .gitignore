@@ -19,6 +19,7 @@ models/*.json
 reports/*.json
 reports/*.md
 reports/*.png
+reports/performance/
 feedback/*.jsonl
 logs/*.log
 mlruns/

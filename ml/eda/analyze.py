@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 
 from ml.common import DATA_RAW, REPORTS, ROOT, ensure_dirs, read_json, write_json
+from ml.monitoring.performance import timed_stage
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -120,73 +121,76 @@ def analyze(
     markdown_output_path: Path = REPORTS / "eda_report.md",
     figures_dir: Path = FIGURES_DIR,
 ) -> dict[str, Any]:
-    ensure_dirs()
-    figures_dir.mkdir(parents=True, exist_ok=True)
-    config = read_json(config_path) if config_path.exists() else {}
-    df = pd.read_csv(input_path)
-    normalized_text = df["review_text"].astype(str).str.lower().str.strip()
-    text_lengths = df["review_text"].astype(str).str.len()
-    class_distribution = {
-        str(key): int(value) for key, value in df["sentiment"].value_counts().sort_index().to_dict().items()
-    }
-    rating_distribution = {
-        str(key): int(value) for key, value in df["rating"].value_counts().sort_index().to_dict().items()
-    }
+    with timed_stage("run_eda") as perf:
+        ensure_dirs()
+        figures_dir.mkdir(parents=True, exist_ok=True)
+        config = read_json(config_path) if config_path.exists() else {}
+        df = pd.read_csv(input_path)
+        perf["rows_processed"] = int(len(df))
+        perf["extra"] = {"figures_generated": 4}
+        normalized_text = df["review_text"].astype(str).str.lower().str.strip()
+        text_lengths = df["review_text"].astype(str).str.len()
+        class_distribution = {
+            str(key): int(value) for key, value in df["sentiment"].value_counts().sort_index().to_dict().items()
+        }
+        rating_distribution = {
+            str(key): int(value) for key, value in df["rating"].value_counts().sort_index().to_dict().items()
+        }
 
-    top_by_sentiment = {
-        sentiment: top_terms(df.loc[df["sentiment"] == sentiment, "review_text"], top_k=15)
-        for sentiment in sorted(df["sentiment"].dropna().unique())
-    }
-    mixed_label_text = int(
-        df.assign(_normalized_text=normalized_text).groupby("_normalized_text")["sentiment"].nunique().gt(1).sum()
-    )
+        top_by_sentiment = {
+            sentiment: top_terms(df.loc[df["sentiment"] == sentiment, "review_text"], top_k=15)
+            for sentiment in sorted(df["sentiment"].dropna().unique())
+        }
+        mixed_label_text = int(
+            df.assign(_normalized_text=normalized_text).groupby("_normalized_text")["sentiment"].nunique().gt(1).sum()
+        )
 
-    plot_bar(class_distribution, "Class distribution", figures_dir / "class_distribution.png")
-    plot_bar(rating_distribution, "Rating distribution", figures_dir / "rating_distribution.png", color="#d58a2a")
-    plot_histogram(text_lengths, "Review text length distribution", figures_dir / "text_length_distribution.png")
-    sentiment_token_counts = {
-        sentiment: sum(item["count"] for item in terms[:10]) for sentiment, terms in top_by_sentiment.items()
-    }
-    plot_bar(
-        sentiment_token_counts,
-        "Top-token volume by sentiment",
-        figures_dir / "top_tokens_by_sentiment.png",
-        color="#6457a6",
-    )
+        plot_bar(class_distribution, "Class distribution", figures_dir / "class_distribution.png")
+        plot_bar(rating_distribution, "Rating distribution", figures_dir / "rating_distribution.png", color="#d58a2a")
+        plot_histogram(text_lengths, "Review text length distribution", figures_dir / "text_length_distribution.png")
+        sentiment_token_counts = {
+            sentiment: sum(item["count"] for item in terms[:10]) for sentiment, terms in top_by_sentiment.items()
+        }
+        plot_bar(
+            sentiment_token_counts,
+            "Top-token volume by sentiment",
+            figures_dir / "top_tokens_by_sentiment.png",
+            color="#6457a6",
+        )
 
-    report: dict[str, Any] = {
-        "stage": "run_eda",
-        "status": "success",
-        "dataset": {
-            "dataset_name": config.get("dataset_name", "unknown"),
-            "dataset_split": config.get("dataset_split", "unknown"),
-            "source_homepage": config.get("source_homepage", "unknown"),
-        },
-        "input_path": str(input_path),
-        "rows": int(len(df)),
-        "missing_values": {str(key): int(value) for key, value in df.isnull().sum().to_dict().items()},
-        "duplicates": {
-            "review_id": int(df["review_id"].duplicated().sum()),
-            "review_text": int(normalized_text.duplicated().sum()),
-            "mixed_label_text": mixed_label_text,
-        },
-        "text_length": text_length_summary(text_lengths),
-        "very_short_reviews": int((text_lengths < int(config.get("min_text_length", 20))).sum()),
-        "very_long_reviews": int((text_lengths > int(config.get("max_text_length", 3000))).sum()),
-        "class_distribution": class_distribution,
-        "rating_distribution": rating_distribution,
-        "top_terms_overall": top_terms(df["review_text"], top_k=20),
-        "top_terms_by_sentiment": top_by_sentiment,
-        "figures": {
-            "class_distribution": str(figures_dir / "class_distribution.png"),
-            "rating_distribution": str(figures_dir / "rating_distribution.png"),
-            "text_length_distribution": str(figures_dir / "text_length_distribution.png"),
-            "top_tokens_by_sentiment": str(figures_dir / "top_tokens_by_sentiment.png"),
-        },
-    }
-    write_json(report_output_path, report)
-    write_markdown_report(report, markdown_output_path)
-    return report
+        report: dict[str, Any] = {
+            "stage": "run_eda",
+            "status": "success",
+            "dataset": {
+                "dataset_name": config.get("dataset_name", "unknown"),
+                "dataset_split": config.get("dataset_split", "unknown"),
+                "source_homepage": config.get("source_homepage", "unknown"),
+            },
+            "input_path": str(input_path),
+            "rows": int(len(df)),
+            "missing_values": {str(key): int(value) for key, value in df.isnull().sum().to_dict().items()},
+            "duplicates": {
+                "review_id": int(df["review_id"].duplicated().sum()),
+                "review_text": int(normalized_text.duplicated().sum()),
+                "mixed_label_text": mixed_label_text,
+            },
+            "text_length": text_length_summary(text_lengths),
+            "very_short_reviews": int((text_lengths < int(config.get("min_text_length", 20))).sum()),
+            "very_long_reviews": int((text_lengths > int(config.get("max_text_length", 3000))).sum()),
+            "class_distribution": class_distribution,
+            "rating_distribution": rating_distribution,
+            "top_terms_overall": top_terms(df["review_text"], top_k=20),
+            "top_terms_by_sentiment": top_by_sentiment,
+            "figures": {
+                "class_distribution": str(figures_dir / "class_distribution.png"),
+                "rating_distribution": str(figures_dir / "rating_distribution.png"),
+                "text_length_distribution": str(figures_dir / "text_length_distribution.png"),
+                "top_tokens_by_sentiment": str(figures_dir / "top_tokens_by_sentiment.png"),
+            },
+        }
+        write_json(report_output_path, report)
+        write_markdown_report(report, markdown_output_path)
+        return report
 
 
 def main() -> None:

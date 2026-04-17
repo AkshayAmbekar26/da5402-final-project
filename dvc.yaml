@@ -5,6 +5,7 @@ stages:
       - configs/data_config.json
       - ml/data_ingestion/ingest.py
       - ml/common.py
+      - ml/monitoring/performance.py
     outs:
       - data/raw/reviews.csv
     metrics:
@@ -17,6 +18,7 @@ stages:
       - configs/data_config.json
       - data/raw/reviews.csv
       - ml/validation/validate_data.py
+      - ml/monitoring/performance.py
     metrics:
       - reports/data_validation.json:
           cache: false
@@ -27,6 +29,7 @@ stages:
       - configs/data_config.json
       - data/raw/reviews.csv
       - ml/eda/analyze.py
+      - ml/monitoring/performance.py
     outs:
       - reports/eda_report.md
       - reports/figures
@@ -40,6 +43,7 @@ stages:
       - configs/data_config.json
       - data/raw/reviews.csv
       - ml/preprocessing/preprocess.py
+      - ml/monitoring/performance.py
     outs:
       - data/interim/rejected_reviews.csv
       - data/processed/train.csv
@@ -54,6 +58,7 @@ stages:
     deps:
       - data/processed/train.csv
       - ml/features/compute_baseline.py
+      - ml/monitoring/performance.py
     outs:
       - data/baselines/feature_baseline.json
     metrics:
@@ -67,6 +72,7 @@ stages:
       - data/processed/validation.csv
       - data/processed/test.csv
       - ml/training/train.py
+      - ml/monitoring/performance.py
     outs:
       - models/sentiment_model.joblib
       - models/model_metadata.json
@@ -84,6 +90,7 @@ stages:
       - models/sentiment_model.joblib
       - data/processed/test.csv
       - ml/evaluation/evaluate.py
+      - ml/monitoring/performance.py
     metrics:
       - reports/evaluation.json:
           cache: false
@@ -94,6 +101,7 @@ stages:
       - data/baselines/feature_baseline.json
       - data/processed/test.csv
       - ml/monitoring/drift.py
+      - ml/monitoring/performance.py
     metrics:
       - reports/drift_report.json:
           cache: false
@@ -111,6 +119,9 @@ stages:
       - reports/evaluation.json
       - reports/drift_report.json
       - ml/monitoring/publish_report.py
+      - ml/monitoring/performance.py
     metrics:
       - reports/pipeline_report.json:
+          cache: false
+      - reports/pipeline_performance.json:
           cache: false

@@ -27,6 +27,7 @@ Testing covers data quality, ML pipeline utilities, API contracts, monitoring ou
 | T17 | Frontend | React build | Production bundle builds successfully |
 | T18 | Docker | Compose config | Docker Compose validates service graph |
 | T19 | DVC | `dvc repro` | Reproduces lifecycle pipeline |
+| T20 | Pipeline | Performance report | Stage duration and throughput are recorded |
 
 ## Acceptance Criteria
 

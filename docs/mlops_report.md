@@ -12,6 +12,8 @@ The pipeline ingests `SetFit/amazon_reviews_multi_en` into a standard schema, va
 
 EDA produces JSON, Markdown, and chart artifacts covering row counts, missing values, duplicate text, class distribution, rating distribution, text-length statistics, top tokens, and dataset limitation notes.
 
+Pipeline performance is recorded in `reports/pipeline_performance.json`. Each lifecycle stage records duration, rows processed, and throughput where row throughput applies. This gives a direct answer for pipeline speed and throughput during the viva.
+
 ## Experiment Tracking
 
 MLflow logs:
@@ -40,6 +42,25 @@ Reproducibility is anchored by:
 - Fixed random seed
 - `MLproject`
 - Docker images and Docker Compose
+
+Useful DVC demo commands:
+
+```bash
+dvc dag
+dvc metrics show
+dvc status
+dvc repro
+```
+
+`dvc dag` visualizes lifecycle lineage, `dvc metrics show` prints tracked JSON metrics, and `dvc repro` rebuilds only changed stages according to `dvc.lock`.
+
+## Pipeline Visualization
+
+The ML lifecycle can be visualized in three places:
+
+- **Airflow:** orchestration graph, task logs, retries, failures, and successful runs.
+- **DVC:** reproducible DAG lineage and metric snapshots.
+- **Frontend MLOps dashboard:** stakeholder-friendly status, dataset rows, processed rows, rejected rows, selected model, candidate count, drift, macro F1, and pipeline duration.
 
 ## Monitoring
 
