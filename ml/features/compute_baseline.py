@@ -23,6 +23,7 @@ def compute_baseline(
     vectorizer = TfidfVectorizer(max_features=50, ngram_range=(1, 2), stop_words="english")
     matrix = vectorizer.fit_transform(df["review_text"].astype(str))
     feature_means = matrix.mean(axis=0).A1
+    feature_variances = matrix.power(2).mean(axis=0).A1 - feature_means**2
     feature_names = vectorizer.get_feature_names_out()
     count_vectorizer = CountVectorizer(stop_words="english", ngram_range=(1, 2), max_features=100)
     count_matrix = count_vectorizer.fit_transform(df["review_text"].astype(str))
@@ -62,6 +63,10 @@ def compute_baseline(
         "tfidf_feature_means": {
             str(name): float(value) for name, value in zip(feature_names, feature_means, strict=False)
         },
+        "tfidf_feature_variances": {
+            str(name): float(max(value, 0.0))
+            for name, value in zip(feature_names, feature_variances, strict=False)
+        },
     }
     write_json(baseline_output_path, baseline)
     write_json(
@@ -71,6 +76,7 @@ def compute_baseline(
             "status": "success",
             "baseline_path": str(baseline_output_path),
             "tracked_features": len(baseline["tfidf_feature_means"]),
+            "tracked_feature_variances": len(baseline["tfidf_feature_variances"]),
         },
     )
     if baseline_output_path == DATA_BASELINES / "feature_baseline.json":

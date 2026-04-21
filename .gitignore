@@ -1,5 +1,6 @@
 .DS_Store
 .env
+.env.rollback*
 .venv/
 __pycache__/
 *.py[cod]
@@ -12,18 +13,27 @@ htmlcov/
 # Data and generated artifacts are tracked through DVC, not Git.
 data/raw/*.csv
 data/interim/*.csv
+data/interim/batches/
+data/incoming/*.csv
+data/archive/*.csv
+data/quarantine/*.csv
+data/ops/*.db
+data/ops/*.sqlite
 data/processed/*.csv
 data/baselines/*.json
 models/*.joblib
 models/*.json
+models/rollback/
 reports/*.json
 reports/*.md
 reports/*.png
 reports/performance/
+dvc_plots/
 feedback/*.jsonl
 logs/*.log
 mlruns/
 .dvc/cache/
+dvc_remote/
 
 # Frontend
 apps/frontend/node_modules/

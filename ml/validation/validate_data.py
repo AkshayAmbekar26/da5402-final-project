@@ -5,7 +5,16 @@ from pathlib import Path
 
 import pandas as pd
 
-from ml.common import DATA_RAW, REPORTS, ROOT, SENTIMENT_LABELS, ensure_dirs, read_json, write_json
+from ml.common import (
+    DATA_RAW,
+    REPORTS,
+    ROOT,
+    SENTIMENT_LABELS,
+    ensure_dirs,
+    read_json,
+    read_params,
+    write_json,
+)
 from ml.monitoring.performance import timed_stage
 
 REQUIRED_COLUMNS = ["review_id", "review_text", "rating", "sentiment", "source", "ingested_at"]
@@ -99,7 +108,7 @@ def validate_data(
 ) -> dict[str, object]:
     with timed_stage("validate_raw_data") as perf:
         ensure_dirs()
-        config = read_json(config_path) if config_path.exists() else {}
+        config = {**(read_json(config_path) if config_path.exists() else {}), **read_params("data")}
         df = pd.read_csv(input_path)
         report = validate_dataframe(
             df,

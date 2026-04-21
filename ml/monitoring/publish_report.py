@@ -13,7 +13,9 @@ REPORT_FILES = [
     "feature_baseline_report.json",
     "training_metrics.json",
     "model_comparison.json",
+    "model_optimization_report.json",
     "evaluation.json",
+    "acceptance_gate.json",
     "drift_report.json",
     "pipeline_performance.json",
 ]

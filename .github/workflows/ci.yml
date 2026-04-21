@@ -6,25 +6,44 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   python:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install
-        run: pip install -e ".[dev]"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -c constraints.txt -e ".[dev]"
       - name: Lint
         run: ruff check .
       - name: Test
         run: pytest
       - name: Reproduce DVC pipeline
         run: dvc repro
+      - name: Check DVC status
+        run: dvc status
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-artifacts
+          path: |
+            models/
+            reports/
+            data/baselines/
+          if-no-files-found: error
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,15 +53,58 @@ jobs:
           cache-dependency-path: apps/frontend/package-lock.json
       - name: Install frontend dependencies
         working-directory: apps/frontend
-        run: npm install
+        run: npm ci
       - name: Build frontend
         working-directory: apps/frontend
         run: npm run build
 
-  docker:
+  configuration:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Validate compose config
-        run: docker compose config
+      - name: Validate Docker Compose config
+        run: docker compose --profile mlflow-serving config
+      - name: Validate monitoring config
+        run: ./scripts/validate_monitoring_config.sh
 
+  docker-deployment:
+    runs-on: ubuntu-latest
+    needs: [python, frontend, configuration]
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore deployment artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-artifacts
+          path: .
+      - name: Validate compose config
+        run: docker compose --profile mlflow-serving config
+      - name: Build deployment images
+        run: docker compose --profile mlflow-serving build api frontend mlflow mlflow-model-server airflow-init airflow-webserver airflow-scheduler airflow-dag-processor
+      - name: Start local deployment stack
+        run: docker compose --profile mlflow-serving up -d
+      - name: Show deployment status
+        run: docker compose --profile mlflow-serving ps
+      - name: Run deployment smoke test
+        env:
+          RETRIES: "90"
+          SLEEP_SECONDS: "3"
+          RUN_MLFLOW_SERVING_SMOKE: "true"
+        run: ./scripts/docker_smoke.sh
+      - name: Collect compose logs
+        if: failure()
+        run: |
+          mkdir -p deployment-logs
+          docker compose --profile mlflow-serving ps > deployment-logs/compose-ps.txt
+          docker compose --profile mlflow-serving logs --no-color > deployment-logs/compose-logs.txt
+      - name: Upload deployment logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-logs
+          path: deployment-logs/
+      - name: Stop local deployment stack
+        if: always()
+        run: docker compose --profile mlflow-serving down -v --remove-orphans

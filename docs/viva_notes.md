@@ -2,45 +2,121 @@
 
 ## One-Minute Explanation
 
-This is an end-to-end MLOps project for product review sentiment analysis. The model classifies reviews into positive, neutral, or negative sentiment. The important part is not model novelty but the lifecycle: data ingestion, validation, preprocessing, training, experiment tracking, versioning, deployment, monitoring, feedback, and retraining readiness.
+This is an end-to-end local MLOps project for product review sentiment analysis. The app classifies e-commerce reviews as positive, neutral, or negative. The main achievement is not model novelty; it is the complete lifecycle: data ingestion, validation, EDA, preprocessing, feature baselines, experiment tracking, DVC reproducibility, Airflow orchestration, model acceptance, FastAPI deployment, React UI, Prometheus/Grafana monitoring, AlertManager alerting, feedback logging, Docker packaging, and documentation.
 
 ## Why This Problem
 
-E-commerce platforms receive many reviews, and manually reading them is slow. A sentiment analyzer gives fast feedback summaries while still being simple enough to demonstrate strong MLOps practices.
+E-commerce platforms receive many customer reviews. A sentiment analyzer lets a business user quickly identify whether reviews are favorable, mixed, or negative. The problem is simple enough to demo clearly while still supporting a full MLOps lifecycle.
 
 ## Dataset
 
-The primary dataset is `SetFit/amazon_reviews_multi_en`, an English Amazon review dataset available through Hugging Face. The source label is mapped to a 1-5 rating and then grouped into negative, neutral, and positive sentiment. The default training dataset uses 1-star, 3-star, and 5-star reviews only so the three sentiment classes are unambiguous; 2-star and 4-star reviews are excluded as borderline or mixed sentiment. The local seed dataset is kept only as an offline fallback for demo reliability.
+The primary dataset is `SetFit/amazon_reviews_multi_en`, an English Amazon review dataset available through Hugging Face. The project maps source labels to 1-5 star ratings and then maps ratings to sentiment. The default training data uses 1-star, 3-star, and 5-star reviews so the three sentiment classes are less ambiguous. A local seed fallback exists only for offline demo reliability.
 
-## Why TF-IDF + Logistic Regression
+## Why TF-IDF Plus Logistic Regression
 
-It is fast, explainable, reproducible, and suitable for local hardware. The training pipeline now compares multiple TF-IDF-based candidates in MLflow and promotes the best candidate using a documented rule: highest validation macro F1 among models that also pass test macro F1 and latency gates. A transformer can be added later but is not necessary for the rubric.
+This model is fast, explainable, reproducible, and practical on local hardware. It also supports word-level explanation through learned feature weights. The pipeline compares multiple candidate models in MLflow and promotes the best accepted candidate using a documented rule.
+
+Current result:
+
+- Selected model: `tfidf_logistic_tuned`
+- Test macro F1: `0.7737`
+- Latency: `0.0467 ms` per review
+- MLflow run ID: `61f2ee995e7d4084a210a3513d83eec8`
 
 ## MLOps Tool Choices
 
-- **DVC:** data/model versioning and reproducible DAG.
-- **Airflow:** visual pipeline orchestration and run history.
-- **MLflow:** experiment tracking and model registry.
-- **FastAPI:** clean REST serving layer.
-- **React:** polished and loosely coupled frontend.
-- **Prometheus/Grafana:** near-real-time monitoring and alerting.
-- **Docker Compose:** local environment parity without cloud services.
+| Tool | Why it is used |
+| --- | --- |
+| Git | Source, config, infrastructure, docs versioning |
+| DVC | Data/model artifact versioning and reproducible pipeline DAG |
+| Airflow | Visual orchestration, retries, logs, operational DAG console |
+| MLflow | Experiment tracking, metrics, parameters, artifacts, model registry metadata |
+| FastAPI | Typed REST inference and operational APIs |
+| React/Vite | Polished and independent frontend |
+| Prometheus | Metrics scraping and alert evaluation |
+| Grafana | Monitoring visualization |
+| AlertManager | Alert routing and silencing |
+| node_exporter | CPU, memory, disk, filesystem, and load metrics |
+| Docker Compose | Local environment parity and multi-service packaging |
 
-## Defensible Tradeoffs
+## Key Defenses
 
-- Public Amazon review data is used for training, and local seed data is included only so the demo works without internet.
-- The API has fallback mode so the UI stays usable before training, while `/ready` clearly reports model state.
-- Airflow and DVC both exist because they serve different rubric needs: orchestration visibility and reproducibility.
+### Why both Airflow and DVC?
 
-## Problems Faced And Mitigation
+Airflow and DVC solve different problems. Airflow is the operational orchestrator and visual pipeline console. DVC is the reproducibility and artifact-lineage system. Airflow answers "what ran and did it fail?" DVC answers "can I reproduce the exact data/model state?"
 
-- **No cloud allowed:** all services run through Docker Compose.
-- **Local hardware limits:** chose lightweight model.
-- **Demo reliability:** included offline data and fallback prediction path.
-- **Monitoring complexity:** exposed focused metrics instead of overengineering production observability.
+### How is reproducibility guaranteed?
+
+Every run is tied to:
+
+- Git commit hash
+- DVC data/artifact state
+- MLflow run ID
+- fixed random seed
+- `params.yaml`
+- `dvc.yaml`
+- Docker/MLproject environment definitions
+
+### How do you know the model is accepted?
+
+The acceptance gate checks:
+
+- test macro F1 `>= 0.75`
+- latency `< 200 ms`
+
+The result is saved in `reports/acceptance_gate.json`. The DVC pipeline fails if the selected model does not pass.
+
+### How is monitoring implemented?
+
+FastAPI exposes `/metrics`. Prometheus scrapes it. Grafana visualizes API traffic, latency, errors, prediction distribution, model readiness, model acceptance, macro F1, drift, data quality, feedback accuracy, pipeline duration, stage throughput, and host resources. AlertManager receives alerts and supports silencing.
+
+### How is the feedback loop implemented?
+
+After prediction, the user can submit the actual sentiment. The API stores this feedback and updates Prometheus counters. This allows future calculation of real-world accuracy and retraining triggers.
+
+### How would rollback work?
+
+Use MLflow and DVC to identify and restore a previous accepted model. Then configure the API to load that model artifact or registry version, restart the API, and verify `/ready`, `/predict`, and monitoring.
+
+## Problems Faced And Mitigations
+
+| Problem | Mitigation |
+| --- | --- |
+| No cloud allowed | Used local Docker Compose services |
+| Local hardware constraints | Used lightweight TF-IDF model |
+| Internet may fail during demo | Added local seed fallback dataset |
+| Need visible orchestration | Added Airflow DAGs |
+| Need reproducible experiments | Added DVC stages and params |
+| Need monitoring beyond API | Added node_exporter, AlertManager, Grafana dashboards |
+| Need UI marks | Redesigned frontend with guide, tour, analyzer, and MLOps command center |
+| Need failure visibility | Added status-aware pipeline stages and recent events panel |
 
 ## Incomplete Items To Admit Honestly
 
-- TLS, authentication, and encrypted production storage are documented but not implemented for local demo.
-- Category-level bias is not analyzed because the reduced SetFit dataset schema does not include product categories.
-- Automated retraining trigger is represented by Airflow/DVC pipeline and feedback logging, but not scheduled continuously by default.
+- TLS and authentication are documented but not enabled in the local course demo.
+- Continuous scheduled retraining is not enabled by default, but DVC/Airflow can run retraining.
+- Product-category bias analysis is limited because the selected dataset subset does not include category metadata.
+- Transformer models are future work because the baseline already satisfies speed, explainability, and reproducibility needs.
+
+## Short Answers For Likely Questions
+
+**What dataset did you use?**
+`SetFit/amazon_reviews_multi_en`, with a local seed fallback only for offline reliability.
+
+**Why not use a transformer?**
+The course is grading MLOps completeness. TF-IDF plus Logistic Regression is faster, explainable, reproducible, and sufficient for the target F1.
+
+**Where is experiment tracking?**
+MLflow logs candidate runs, hyperparameters, metrics, artifacts, Git commit, DVC data state, and selected model metadata.
+
+**Where is the CI-style pipeline?**
+DVC defines the reproducible DAG in `dvc.yaml`, and GitHub Actions runs tests/build checks.
+
+**Where is the pipeline console?**
+Airflow gives the DAG console, and the frontend MLOps dashboard gives a stakeholder-friendly summary.
+
+**How do you monitor drift?**
+Baseline statistics are computed during feature generation. A drift script compares current data against baseline and exports report-backed Prometheus gauges.
+
+**How do you monitor infrastructure?**
+node_exporter exports CPU, memory, disk, filesystem, and load metrics to Prometheus and Grafana.

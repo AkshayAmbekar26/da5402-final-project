@@ -3,7 +3,25 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    env_file: .env
+    environment:
+      API_NAME: ${API_NAME:-Product Review Sentiment API}
+      MODEL_PATH: ${MODEL_PATH:-models/sentiment_model.joblib}
+      MODEL_METADATA_PATH: ${MODEL_METADATA_PATH:-models/model_metadata.json}
+      FEATURE_IMPORTANCE_PATH: ${FEATURE_IMPORTANCE_PATH:-models/feature_importance.json}
+      MODEL_SERVING_MODE: ${MODEL_SERVING_MODE:-local}
+      MLFLOW_SERVING_URL: ${MLFLOW_SERVING_URL:-http://mlflow-model-server:5002/invocations}
+      MLFLOW_SERVING_TIMEOUT_SECONDS: ${MLFLOW_SERVING_TIMEOUT_SECONDS:-10}
+      FEEDBACK_PATH: ${FEEDBACK_PATH:-feedback/feedback.jsonl}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:4173}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-product-review-sentiment}
+      AIRFLOW_URL: ${AIRFLOW_URL:-http://localhost:8080}
+      MLFLOW_URL: ${MLFLOW_URL:-http://localhost:5001}
+      PROMETHEUS_URL: ${PROMETHEUS_URL:-http://localhost:9091}
+      GRAFANA_URL: ${GRAFANA_URL:-http://localhost:3001}
+      ALERTMANAGER_URL: ${ALERTMANAGER_URL:-http://localhost:19093}
+      ENABLE_DEMO_OPS_ENDPOINTS: ${ENABLE_DEMO_OPS_ENDPOINTS:-false}
+      ALLOW_FALLBACK_READY: ${ALLOW_FALLBACK_READY:-false}
     ports:
       - "8000:8000"
     volumes:
@@ -11,9 +29,10 @@ services:
       - ./reports:/app/reports
       - ./feedback:/app/feedback
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
       interval: 20s
       timeout: 5s
+      start_period: 20s
       retries: 3
 
   frontend:
@@ -21,22 +40,62 @@ services:
       context: .
       dockerfile: apps/frontend/Dockerfile
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "5173:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.17.0
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
     command: >
       mlflow server
       --host 0.0.0.0
       --port 5000
-      --backend-store-uri sqlite:///mlflow.db
-      --default-artifact-root /mlflow/artifacts
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root mlflow-artifacts:/
+      --artifacts-destination /mlflow/artifacts
+      --allowed-hosts ${MLFLOW_ALLOWED_HOSTS:-localhost,localhost:5001,127.0.0.1,127.0.0.1:5001,[::1],[::1]:5001,mlflow,mlflow:5000,host.docker.internal}
     ports:
-      - "5000:5000"
+      - "${MLFLOW_HOST_PORT:-5001}:5000"
     volumes:
       - mlflow-data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  mlflow-model-server:
+    profiles: ["mlflow-serving"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: >
+      sh -c "test -d /app/models/mlflow_model &&
+      mlflow models serve
+      -m /app/models/mlflow_model
+      --host 0.0.0.0
+      --port 5002
+      --env-manager local"
+    ports:
+      - "${MLFLOW_MODEL_SERVER_HOST_PORT:-5002}:5002"
+    volumes:
+      - ./models:/app/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/ping')"]
+      interval: 20s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
 
   postgres:
     image: postgres:15-alpine
@@ -48,6 +107,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U airflow"]
       interval: 10s
       timeout: 5s
+      start_period: 10s
       retries: 5
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -62,15 +122,39 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: ${AIRFLOW_EXECUTION_API_SERVER_URL:-http://airflow-webserver:8080/execution/}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-dNFgVSauX0bbJTnNSQQZWqCBJH29FH_OPUgmkdFJGH0=}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: ${AIRFLOW_SIMPLE_AUTH_MANAGER_USERS:-admin:admin}
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/project/airflow/config/simple_auth_manager_passwords.json
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_AUTH_JWT_SECRET:-local-demo-jwt-secret-that-is-long-enough-for-hs512-validation-2026}
       AIRFLOW_UID: ${AIRFLOW_UID:-50000}
+      PROJECT_DIR: /opt/airflow/project
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-product-review-sentiment}
+      MLFLOW_REGISTERED_MODEL_NAME: ${MLFLOW_REGISTERED_MODEL_NAME:-ProductReviewSentimentModel}
+      SENTIMENT_BATCH_POOL: ${SENTIMENT_BATCH_POOL:-sentiment_batch_pool}
+      SENTIMENT_BATCH_POOL_SLOTS: ${SENTIMENT_BATCH_POOL_SLOTS:-3}
+      SENTIMENT_TRAINING_POOL: ${SENTIMENT_TRAINING_POOL:-sentiment_training_pool}
+      SENTIMENT_TRAINING_POOL_SLOTS: ${SENTIMENT_TRAINING_POOL_SLOTS:-1}
+      SENTIMENT_BATCH_FS_CONN_ID: ${SENTIMENT_BATCH_FS_CONN_ID:-fs_incoming_reviews}
+      SENTIMENT_TRAINING_SCHEDULE: ${SENTIMENT_TRAINING_SCHEDULE:-0 2 * * 0}
+      SENTIMENT_MAINTENANCE_SCHEDULE: ${SENTIMENT_MAINTENANCE_SCHEDULE:-0 * * * *}
+      SENTIMENT_RETRAIN_DRIFT_THRESHOLD: ${SENTIMENT_RETRAIN_DRIFT_THRESHOLD:-0.25}
+      SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT: ${SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT:-10}
+      SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY: ${SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY:-0.8}
+      SENTIMENT_RETRAIN_COOLDOWN_HOURS: ${SENTIMENT_RETRAIN_COOLDOWN_HOURS:-6}
+      SENTIMENT_PIPELINE_SMTP_CONN_ID: ${SENTIMENT_PIPELINE_SMTP_CONN_ID:-smtp_default}
+      ALERT_SMTP_SMARTHOST: ${ALERT_SMTP_SMARTHOST:-}
+      ALERT_SMTP_FROM: ${ALERT_SMTP_FROM:-}
+      ALERT_SMTP_AUTH_USERNAME: ${ALERT_SMTP_AUTH_USERNAME:-}
+      ALERT_SMTP_AUTH_PASSWORD: ${ALERT_SMTP_AUTH_PASSWORD:-}
     volumes:
       - ./:/opt/airflow/project
       - ./airflow/dags:/opt/airflow/dags
       - airflow-logs:/opt/airflow/logs
     command: >
-      bash -c "airflow db migrate &&
-      airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin || true"
+      bash -c "cd /opt/airflow/project && ./scripts/bootstrap_airflow.sh"
 
   airflow-webserver:
     build:
@@ -82,16 +166,48 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: ${AIRFLOW_EXECUTION_API_SERVER_URL:-http://airflow-webserver:8080/execution/}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-dNFgVSauX0bbJTnNSQQZWqCBJH29FH_OPUgmkdFJGH0=}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: ${AIRFLOW_SIMPLE_AUTH_MANAGER_USERS:-admin:admin}
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/project/airflow/config/simple_auth_manager_passwords.json
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_AUTH_JWT_SECRET:-local-demo-jwt-secret-that-is-long-enough-for-hs512-validation-2026}
       AIRFLOW_UID: ${AIRFLOW_UID:-50000}
       PYTHONPATH: /opt/airflow/project
-    command: webserver
+      PROJECT_DIR: /opt/airflow/project
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-product-review-sentiment}
+      MLFLOW_REGISTERED_MODEL_NAME: ${MLFLOW_REGISTERED_MODEL_NAME:-ProductReviewSentimentModel}
+      SENTIMENT_BATCH_POOL: ${SENTIMENT_BATCH_POOL:-sentiment_batch_pool}
+      SENTIMENT_BATCH_FS_CONN_ID: ${SENTIMENT_BATCH_FS_CONN_ID:-fs_incoming_reviews}
+      SENTIMENT_BATCH_CHUNK_SIZE: ${SENTIMENT_BATCH_CHUNK_SIZE:-500}
+      SENTIMENT_BATCH_MAX_ACTIVE_CHUNKS: ${SENTIMENT_BATCH_MAX_ACTIVE_CHUNKS:-3}
+      SENTIMENT_BATCH_SUMMARY_ROW_THRESHOLD: ${SENTIMENT_BATCH_SUMMARY_ROW_THRESHOLD:-1000}
+      SENTIMENT_TRAINING_SCHEDULE: ${SENTIMENT_TRAINING_SCHEDULE:-0 2 * * 0}
+      SENTIMENT_MAINTENANCE_SCHEDULE: ${SENTIMENT_MAINTENANCE_SCHEDULE:-0 * * * *}
+      SENTIMENT_RETRAIN_DRIFT_THRESHOLD: ${SENTIMENT_RETRAIN_DRIFT_THRESHOLD:-0.25}
+      SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT: ${SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT:-10}
+      SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY: ${SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY:-0.8}
+      SENTIMENT_RETRAIN_COOLDOWN_HOURS: ${SENTIMENT_RETRAIN_COOLDOWN_HOURS:-6}
+      SENTIMENT_PIPELINE_SMTP_CONN_ID: ${SENTIMENT_PIPELINE_SMTP_CONN_ID:-smtp_default}
+      SENTIMENT_PIPELINE_ALERT_EMAILS: ${SENTIMENT_PIPELINE_ALERT_EMAILS:-}
+      ALERT_SMTP_SMARTHOST: ${ALERT_SMTP_SMARTHOST:-}
+      ALERT_SMTP_FROM: ${ALERT_SMTP_FROM:-}
+      ALERT_SMTP_AUTH_USERNAME: ${ALERT_SMTP_AUTH_USERNAME:-}
+      ALERT_SMTP_AUTH_PASSWORD: ${ALERT_SMTP_AUTH_PASSWORD:-}
+    command: api-server --host 0.0.0.0 --port 8080
     ports:
       - "8080:8080"
     volumes:
       - ./:/opt/airflow/project
       - ./airflow/dags:/opt/airflow/dags
       - airflow-logs:/opt/airflow/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/v2/monitor/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
 
   airflow-scheduler:
     build:
@@ -103,10 +219,87 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: ${AIRFLOW_EXECUTION_API_SERVER_URL:-http://airflow-webserver:8080/execution/}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-dNFgVSauX0bbJTnNSQQZWqCBJH29FH_OPUgmkdFJGH0=}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: ${AIRFLOW_SIMPLE_AUTH_MANAGER_USERS:-admin:admin}
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/project/airflow/config/simple_auth_manager_passwords.json
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_AUTH_JWT_SECRET:-local-demo-jwt-secret-that-is-long-enough-for-hs512-validation-2026}
       AIRFLOW_UID: ${AIRFLOW_UID:-50000}
       PYTHONPATH: /opt/airflow/project
+      PROJECT_DIR: /opt/airflow/project
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-product-review-sentiment}
+      MLFLOW_REGISTERED_MODEL_NAME: ${MLFLOW_REGISTERED_MODEL_NAME:-ProductReviewSentimentModel}
+      SENTIMENT_BATCH_POOL: ${SENTIMENT_BATCH_POOL:-sentiment_batch_pool}
+      SENTIMENT_BATCH_FS_CONN_ID: ${SENTIMENT_BATCH_FS_CONN_ID:-fs_incoming_reviews}
+      SENTIMENT_BATCH_CHUNK_SIZE: ${SENTIMENT_BATCH_CHUNK_SIZE:-500}
+      SENTIMENT_BATCH_MAX_ACTIVE_CHUNKS: ${SENTIMENT_BATCH_MAX_ACTIVE_CHUNKS:-3}
+      SENTIMENT_BATCH_SUMMARY_ROW_THRESHOLD: ${SENTIMENT_BATCH_SUMMARY_ROW_THRESHOLD:-1000}
+      SENTIMENT_TRAINING_SCHEDULE: ${SENTIMENT_TRAINING_SCHEDULE:-0 2 * * 0}
+      SENTIMENT_MAINTENANCE_SCHEDULE: ${SENTIMENT_MAINTENANCE_SCHEDULE:-0 * * * *}
+      SENTIMENT_RETRAIN_DRIFT_THRESHOLD: ${SENTIMENT_RETRAIN_DRIFT_THRESHOLD:-0.25}
+      SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT: ${SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT:-10}
+      SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY: ${SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY:-0.8}
+      SENTIMENT_RETRAIN_COOLDOWN_HOURS: ${SENTIMENT_RETRAIN_COOLDOWN_HOURS:-6}
+      SENTIMENT_PIPELINE_SMTP_CONN_ID: ${SENTIMENT_PIPELINE_SMTP_CONN_ID:-smtp_default}
+      SENTIMENT_PIPELINE_ALERT_EMAILS: ${SENTIMENT_PIPELINE_ALERT_EMAILS:-}
+      ALERT_SMTP_SMARTHOST: ${ALERT_SMTP_SMARTHOST:-}
+      ALERT_SMTP_FROM: ${ALERT_SMTP_FROM:-}
+      ALERT_SMTP_AUTH_USERNAME: ${ALERT_SMTP_AUTH_USERNAME:-}
+      ALERT_SMTP_AUTH_PASSWORD: ${ALERT_SMTP_AUTH_PASSWORD:-}
     command: scheduler
+    volumes:
+      - ./:/opt/airflow/project
+      - ./airflow/dags:/opt/airflow/dags
+      - airflow-logs:/opt/airflow/logs
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  airflow-dag-processor:
+    build:
+      context: .
+      dockerfile: infra/docker/airflow.Dockerfile
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: ${AIRFLOW_EXECUTION_API_SERVER_URL:-http://airflow-webserver:8080/execution/}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-dNFgVSauX0bbJTnNSQQZWqCBJH29FH_OPUgmkdFJGH0=}
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: ${AIRFLOW_SIMPLE_AUTH_MANAGER_USERS:-admin:admin}
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/project/airflow/config/simple_auth_manager_passwords.json
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_AUTH_JWT_SECRET:-local-demo-jwt-secret-that-is-long-enough-for-hs512-validation-2026}
+      AIRFLOW_UID: ${AIRFLOW_UID:-50000}
+      PYTHONPATH: /opt/airflow/project
+      PROJECT_DIR: /opt/airflow/project
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-product-review-sentiment}
+      MLFLOW_REGISTERED_MODEL_NAME: ${MLFLOW_REGISTERED_MODEL_NAME:-ProductReviewSentimentModel}
+      SENTIMENT_BATCH_POOL: ${SENTIMENT_BATCH_POOL:-sentiment_batch_pool}
+      SENTIMENT_BATCH_FS_CONN_ID: ${SENTIMENT_BATCH_FS_CONN_ID:-fs_incoming_reviews}
+      SENTIMENT_BATCH_CHUNK_SIZE: ${SENTIMENT_BATCH_CHUNK_SIZE:-500}
+      SENTIMENT_BATCH_MAX_ACTIVE_CHUNKS: ${SENTIMENT_BATCH_MAX_ACTIVE_CHUNKS:-3}
+      SENTIMENT_BATCH_SUMMARY_ROW_THRESHOLD: ${SENTIMENT_BATCH_SUMMARY_ROW_THRESHOLD:-1000}
+      SENTIMENT_TRAINING_SCHEDULE: ${SENTIMENT_TRAINING_SCHEDULE:-0 2 * * 0}
+      SENTIMENT_MAINTENANCE_SCHEDULE: ${SENTIMENT_MAINTENANCE_SCHEDULE:-0 * * * *}
+      SENTIMENT_RETRAIN_DRIFT_THRESHOLD: ${SENTIMENT_RETRAIN_DRIFT_THRESHOLD:-0.25}
+      SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT: ${SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT:-10}
+      SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY: ${SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY:-0.8}
+      SENTIMENT_RETRAIN_COOLDOWN_HOURS: ${SENTIMENT_RETRAIN_COOLDOWN_HOURS:-6}
+      SENTIMENT_PIPELINE_SMTP_CONN_ID: ${SENTIMENT_PIPELINE_SMTP_CONN_ID:-smtp_default}
+      SENTIMENT_PIPELINE_ALERT_EMAILS: ${SENTIMENT_PIPELINE_ALERT_EMAILS:-}
+      ALERT_SMTP_SMARTHOST: ${ALERT_SMTP_SMARTHOST:-}
+      ALERT_SMTP_FROM: ${ALERT_SMTP_FROM:-}
+      ALERT_SMTP_AUTH_USERNAME: ${ALERT_SMTP_AUTH_USERNAME:-}
+      ALERT_SMTP_AUTH_PASSWORD: ${ALERT_SMTP_AUTH_PASSWORD:-}
+    command: dag-processor
     volumes:
       - ./:/opt/airflow/project
       - ./airflow/dags:/opt/airflow/dags
@@ -114,30 +307,87 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=14d
+      - --web.enable-lifecycle
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_HOST_PORT:-9091}:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
       - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+      node-exporter:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9090/-/ready || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    command:
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($$|/)
+    ports:
+      - "${NODE_EXPORTER_HOST_PORT:-19100}:9100"
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    entrypoint: ["/bin/sh", "/etc/alertmanager/alertmanager-start.sh"]
+    environment:
+      ALERT_EMAIL_ENABLED: ${ALERT_EMAIL_ENABLED:-false}
+      ALERT_SMTP_SMARTHOST: ${ALERT_SMTP_SMARTHOST:-}
+      ALERT_SMTP_FROM: ${ALERT_SMTP_FROM:-}
+      ALERT_SMTP_AUTH_USERNAME: ${ALERT_SMTP_AUTH_USERNAME:-}
+      ALERT_SMTP_AUTH_PASSWORD: ${ALERT_SMTP_AUTH_PASSWORD:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+    ports:
+      - "${ALERTMANAGER_HOST_PORT:-19093}:9093"
+    volumes:
+      - ./infra/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./infra/alertmanager/alertmanager-email.template.yml:/etc/alertmanager/alertmanager-email.template.yml:ro
+      - ./infra/alertmanager/alertmanager-start.sh:/etc/alertmanager/alertmanager-start.sh:ro
+      - alertmanager-data:/alertmanager
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:11.2.0
     ports:
-      - "3000:3000"
+      - "${GRAFANA_HOST_PORT:-3001}:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   mlflow-data:
   postgres-data:
   airflow-logs:
+  prometheus-data:
   grafana-data:
+  alertmanager-data:

@@ -49,7 +49,50 @@ def test_feedback_endpoint() -> None:
 def test_metrics_endpoint_exposes_prometheus_text() -> None:
     response = client.get("/metrics")
     assert response.status_code == 200
-    assert "sentiment_api_requests_total" in response.text
+    expected_metrics = [
+        "sentiment_api_requests_total",
+        "sentiment_active_requests",
+        "sentiment_invalid_reviews_total",
+        "sentiment_stage_latency_seconds",
+        "sentiment_process_resident_memory_bytes",
+        "sentiment_process_cpu_percent",
+        "sentiment_model_loaded",
+        "sentiment_model_fallback_mode",
+        "sentiment_model_accepted",
+        "sentiment_model_test_macro_f1",
+        "sentiment_data_drift_score",
+        "sentiment_data_drift_detected",
+        "sentiment_pipeline_duration_seconds",
+        "sentiment_data_raw_rows",
+        "sentiment_data_rejected_ratio",
+        "sentiment_batch_pipeline_rows_processed",
+        "sentiment_batch_pipeline_quarantined",
+        "sentiment_feedback_accuracy_ratio",
+    ]
+    for metric_name in expected_metrics:
+        assert metric_name in response.text
+
+
+def test_invalid_predict_request_is_counted_in_metrics() -> None:
+    response = client.post("/predict", json={"review_text": ""})
+    assert response.status_code == 422
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert 'sentiment_invalid_reviews_total{endpoint="/predict",reason="empty_review_text"}' in metrics.text
+
+
+def test_demo_error_endpoint_is_disabled_by_default() -> None:
+    response = client.post("/ops/demo/error", json={})
+    assert response.status_code == 404
+
+
+def test_monitoring_refresh_endpoint_returns_pipeline_summary() -> None:
+    response = client.post("/monitoring/refresh")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "refreshed"
+    assert "pipeline_summary" in payload
 
 
 def test_metrics_summary_includes_pipeline_sections() -> None:
@@ -59,3 +102,6 @@ def test_metrics_summary_includes_pipeline_sections() -> None:
     assert "pipeline_summary" in payload
     assert "pipeline_performance" in payload
     assert "model_comparison" in payload
+    assert "model_optimization" in payload
+    assert "drift" in payload
+    assert "batch_pipeline" in payload

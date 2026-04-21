@@ -1,19 +1,38 @@
 name: product-review-sentiment-mlops
 
+conda_env: conda.yaml
+
 entry_points:
   main:
     parameters:
       config_path: {type: str, default: "configs/data_config.json"}
+      tracking_uri: {type: str, default: "file:./mlruns"}
+      experiment_name: {type: str, default: "product-review-sentiment"}
+      registered_model_name: {type: str, default: "ProductReviewSentimentModel"}
+      max_rows_total: {type: int, default: 15000}
+      seed_rows_per_class: {type: int, default: 300}
+      random_seed: {type: int, default: 42}
+      acceptance_test_macro_f1: {type: float, default: 0.75}
+      acceptance_latency_ms: {type: float, default: 200.0}
     command: >
-      python -m ml.data_ingestion.ingest --config {config_path} &&
-      python -m ml.validation.validate_data --config {config_path} &&
-      python -m ml.eda.analyze --config {config_path} &&
-      python -m ml.preprocessing.preprocess --config {config_path} &&
-      python -m ml.features.compute_baseline &&
-      python -m ml.training.train &&
-      python -m ml.evaluation.evaluate &&
-      python -m ml.monitoring.drift &&
-      python -m ml.monitoring.publish_report
+      python -m ml.project
+      --config-path {config_path}
+      --tracking-uri {tracking_uri}
+      --experiment-name {experiment_name}
+      --registered-model-name {registered_model_name}
+      --max-rows-total {max_rows_total}
+      --seed-rows-per-class {seed_rows_per_class}
+      --random-seed {random_seed}
+      --acceptance-test-macro-f1 {acceptance_test_macro_f1}
+      --acceptance-latency-ms {acceptance_latency_ms}
 
   train:
-    command: python -m ml.training.train
+    parameters:
+      tracking_uri: {type: str, default: "file:./mlruns"}
+      experiment_name: {type: str, default: "product-review-sentiment"}
+      registered_model_name: {type: str, default: "ProductReviewSentimentModel"}
+    command: >
+      MLFLOW_TRACKING_URI={tracking_uri}
+      MLFLOW_EXPERIMENT_NAME={experiment_name}
+      MLFLOW_REGISTERED_MODEL_NAME={registered_model_name}
+      python -m ml.training.train

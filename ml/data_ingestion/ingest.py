@@ -14,6 +14,7 @@ from ml.common import (
     ensure_dirs,
     rating_to_sentiment,
     read_json,
+    read_params,
     utc_now,
     write_json,
 )
@@ -58,6 +59,43 @@ NEGATIVE_REVIEWS = [
     "Low performance, bad packaging, and overall frustrating experience.",
 ]
 
+PRODUCT_CONTEXTS = [
+    "wireless headphones",
+    "kitchen blender",
+    "phone case",
+    "office chair",
+    "running shoes",
+    "smart watch",
+    "desk lamp",
+    "travel backpack",
+    "coffee grinder",
+    "tablet stand",
+    "gaming mouse",
+    "water bottle",
+    "portable charger",
+    "yoga mat",
+    "air purifier",
+]
+
+ORDER_CONTEXTS = [
+    "for a weekend sale order",
+    "after one week of use",
+    "for a replacement purchase",
+    "during daily home use",
+    "after comparing similar listings",
+    "for a gift order",
+    "during a repeat purchase",
+    "after using it at work",
+    "for a budget-conscious order",
+    "after checking the product page carefully",
+]
+
+
+def seed_review_text(base_text: str, idx: int) -> str:
+    product = PRODUCT_CONTEXTS[idx % len(PRODUCT_CONTEXTS)]
+    order_context = ORDER_CONTEXTS[(idx // len(PRODUCT_CONTEXTS)) % len(ORDER_CONTEXTS)]
+    return f"{base_text} This review is for the {product} {order_context}, sample {idx:04d}."
+
 
 def build_seed_dataset(rows_per_class: int) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
@@ -71,7 +109,7 @@ def build_seed_dataset(rows_per_class: int) -> pd.DataFrame:
             rows.append(
                 {
                     "review_id": f"{sentiment}-{idx:04d}",
-                    "review_text": next(review_iter),
+                    "review_text": seed_review_text(next(review_iter), idx),
                     "rating": rating,
                     "sentiment": sentiment,
                     "source": "local_seed_ecommerce_reviews",
@@ -151,14 +189,37 @@ def load_huggingface_reviews(config: dict[str, Any]) -> tuple[pd.DataFrame, dict
 
 
 def load_data_config(config_path: Path) -> dict[str, Any]:
-    if config_path.exists():
-        return read_json(config_path)
-    return {
+    fallback_config = {
         "dataset_name": "local_seed_ecommerce_reviews",
         "max_rows_total": 900,
         "fallback_to_seed_data": True,
         "seed_rows_per_class": 300,
         "random_seed": 42,
+    }
+    file_config = read_json(config_path) if config_path.exists() else fallback_config
+    return {**file_config, **read_params("data")}
+
+
+def load_cached_public_reviews(config: dict[str, Any]) -> tuple[pd.DataFrame, dict[str, object]] | None:
+    cache_path = DATA_RAW / "reviews.csv"
+    if not cache_path.exists():
+        return None
+
+    df = pd.read_csv(cache_path)
+    required_columns = {"review_id", "review_text", "rating", "sentiment", "source", "ingested_at"}
+    if not required_columns.issubset(df.columns):
+        return None
+    expected_source = str(config.get("dataset_name", ""))
+    if expected_source and not df["source"].astype(str).eq(expected_source).any():
+        return None
+
+    return df, {
+        "dataset_name": expected_source or str(df["source"].iloc[0]),
+        "dataset_split": str(config.get("dataset_split", "cached")),
+        "source_rows_seen": int(len(df)),
+        "rows_filtered_during_ingestion": 0,
+        "source_homepage": config.get("source_homepage"),
+        "cache_path": str(cache_path),
     }
 
 
@@ -167,22 +228,28 @@ def ingest(config_path: Path = ROOT / "configs" / "data_config.json") -> pd.Data
         ensure_dirs()
         config = load_data_config(config_path)
         fallback_used = False
+        cache_used = False
         ingestion_error = None
         try:
             df, source_metadata = load_huggingface_reviews(config)
         except Exception as exc:
             if not bool(config.get("fallback_to_seed_data", True)):
                 raise
-            fallback_used = True
             ingestion_error = str(exc)
-            df = build_seed_dataset(rows_per_class=int(config.get("seed_rows_per_class", 300)))
-            source_metadata = {
-                "dataset_name": "local_seed_ecommerce_reviews",
-                "dataset_split": "generated",
-                "source_rows_seen": int(len(df)),
-                "rows_filtered_during_ingestion": 0,
-                "source_homepage": "local fallback",
-            }
+            cached = load_cached_public_reviews(config)
+            if cached is not None:
+                df, source_metadata = cached
+                cache_used = True
+            else:
+                fallback_used = True
+                df = build_seed_dataset(rows_per_class=int(config.get("seed_rows_per_class", 300)))
+                source_metadata = {
+                    "dataset_name": "local_seed_ecommerce_reviews",
+                    "dataset_split": "generated",
+                    "source_rows_seen": int(len(df)),
+                    "rows_filtered_during_ingestion": 0,
+                    "source_homepage": "local fallback",
+                }
 
         df["sentiment"] = df["rating"].map(rating_to_sentiment)
         output_path = DATA_RAW / "reviews.csv"
@@ -209,6 +276,8 @@ def ingest(config_path: Path = ROOT / "configs" / "data_config.json") -> pd.Data
                 },
                 "fallback_used": fallback_used,
                 "fallback_error": ingestion_error,
+                "cache_used": cache_used,
+                "cache_path": source_metadata.get("cache_path"),
                 "output_path": str(output_path),
                 "source": source_metadata["dataset_name"],
                 "ingested_at": utc_now(),

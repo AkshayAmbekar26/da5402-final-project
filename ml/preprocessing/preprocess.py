@@ -15,16 +15,19 @@ from ml.common import (
     ROOT,
     ensure_dirs,
     read_json,
+    read_params,
     write_json,
 )
 from ml.monitoring.performance import timed_stage
 
 
 def clean_text(value: object) -> str:
+    """Normalize whitespace without changing wording; sentiment signal should remain intact."""
     return " ".join(str(value).strip().split())
 
 
 def reject_rows(df: pd.DataFrame, mask: pd.Series, reason: str) -> pd.DataFrame:
+    """Keep rejected rows auditable instead of silently dropping them."""
     rejected = df.loc[mask].copy()
     rejected["rejection_reason"] = reason
     return rejected
@@ -37,10 +40,11 @@ def preprocess(
     rejected_output: Path = DATA_INTERIM / "rejected_reviews.csv",
     report_output_path: Path = REPORTS / "preprocessing_report.json",
 ) -> dict[str, object]:
+    """Clean reviews, write rejected-row evidence, and create deterministic stratified splits."""
     record_performance = report_output_path == REPORTS / "preprocessing_report.json"
     with timed_stage("preprocess_data", enabled=record_performance) as perf:
         ensure_dirs()
-        config = read_json(config_path) if config_path.exists() else {}
+        config = {**(read_json(config_path) if config_path.exists() else {}), **read_params("data")}
         min_text_length = int(config.get("min_text_length", 20))
         max_text_length = int(config.get("max_text_length", 3000))
         validation_size = float(config.get("validation_size", 0.15))

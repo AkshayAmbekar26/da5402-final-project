@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta
 
 from airflow.operators.bash import BashOperator
 
 from airflow import DAG
 
-PROJECT_DIR = "/opt/airflow/project"
-PYTHON = "python"
+PROJECT_DIR = os.getenv("PROJECT_DIR", "/opt/airflow/project")
+PYTHON = os.getenv("PYTHON", "python")
+
+
+def _schedule_interval(name: str, default: str) -> str | None:
+    value = os.getenv(name, default).strip()
+    return None if value.lower() in {"", "none", "manual", "off"} else value
 
 
 default_args = {
@@ -23,8 +29,9 @@ with DAG(
     description="End-to-end product review sentiment MLOps pipeline.",
     default_args=default_args,
     start_date=datetime(2026, 1, 1),
-    schedule_interval=None,
+    schedule=_schedule_interval("SENTIMENT_TRAINING_SCHEDULE", "0 2 * * 0"),
     catchup=False,
+    max_active_runs=1,
     tags=["sentiment", "mlops", "dvc", "mlflow"],
 ) as dag:
     ingest_data = BashOperator(
@@ -69,7 +76,7 @@ with DAG(
 
     register_model_if_accepted = BashOperator(
         task_id="register_model_if_accepted",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -c \"import json; r=json.load(open('reports/evaluation.json')); assert r['accepted'], r\"",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.evaluation.check_acceptance",
     )
 
     run_batch_drift_check = BashOperator(

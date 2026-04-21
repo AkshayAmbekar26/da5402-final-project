@@ -1,43 +1,237 @@
 groups:
   - name: sentiment-api-alerts
+    interval: 15s
     rules:
       - alert: SentimentApiDown
         expr: up{job="sentiment-api"} == 0
         for: 1m
         labels:
           severity: critical
+          team: mlops
+          service: sentiment-analyzer
         annotations:
           summary: "Sentiment API is unavailable"
+          description: "Prometheus cannot scrape the FastAPI inference service."
 
       - alert: SentimentApiHighErrorRate
-        expr: sum(rate(sentiment_api_requests_total{status_code=~"5.."}[2m])) / sum(rate(sentiment_api_requests_total[2m])) > 0.05
+        expr: sentiment:api_error_ratio:5m > 0.05
         for: 2m
         labels:
           severity: warning
+          team: mlops
+          service: sentiment-analyzer
         annotations:
           summary: "Sentiment API error rate is above 5%"
+          description: "More than 5% of recent API requests returned 5xx responses."
+
+      - alert: SentimentApiHighInvalidReviewRate
+        expr: sentiment:invalid_reviews_per_second:5m > 0.2
+        for: 2m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Invalid review submissions are elevated"
+          description: "The API is rejecting a sustained stream of malformed, empty, missing, or oversized review requests."
+
+      - alert: SentimentApiActiveRequestsHigh
+        expr: sum(sentiment_active_requests) > 20
+        for: 2m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Sentiment API has unusually many active requests"
+          description: "A high in-flight request count can indicate slow clients, upstream retries, or degraded inference throughput."
 
       - alert: SentimentModelNotLoaded
         expr: sentiment_model_loaded == 0
         for: 1m
         labels:
           severity: warning
+          team: mlops
+          service: sentiment-analyzer
         annotations:
           summary: "API is serving with fallback model"
+          description: "The trained model artifact could not be loaded, so predictions may use fallback rules."
 
-      - alert: SentimentDriftDetected
-        expr: sentiment_data_drift_score > 0.25
+      - alert: SentimentModelFallbackMode
+        expr: sentiment_model_fallback_mode == 1
         for: 1m
         labels:
           severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Sentiment API is using fallback prediction mode"
+          description: "Fallback mode must be disabled for the final demo after the trained model artifact is available."
+
+      - alert: SentimentModelAcceptanceFailed
+        expr: sentiment_model_accepted == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Selected model did not meet acceptance criteria"
+          description: "The latest evaluation report did not pass the configured macro F1 and latency acceptance gates."
+
+      - alert: SentimentDriftDetected
+        expr: sentiment_data_drift_detected == 1 or sentiment_data_drift_score > 0.25
+        for: 1m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
         annotations:
           summary: "Input data drift has crossed the configured threshold"
+          description: "The latest batch drift report indicates the current data distribution moved beyond the baseline."
+
+      - alert: SentimentPipelineDurationHigh
+        expr: sentiment_pipeline_duration_seconds > 300
+        for: 1m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Latest ML pipeline duration exceeded 5 minutes"
+          description: "The end-to-end DVC/Airflow training pipeline is slower than expected for the local demo dataset."
+
+      - alert: SentimentRejectedRowsHigh
+        expr: sentiment_data_rejected_ratio > 0.05
+        for: 1m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "More than 5% of ingested rows were rejected during preprocessing"
+          description: "A high rejected-row ratio can indicate data quality, schema, duplicate, or text-length issues."
+
+      - alert: SentimentBatchQuarantined
+        expr: sentiment_batch_pipeline_quarantined == 1
+        for: 1m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Incoming review batch was quarantined"
+          description: "The Airflow batch ingestion pipeline moved a malformed input file to quarantine."
+
+      - alert: SentimentBatchChunkFailures
+        expr: sentiment_batch_pipeline_failed_chunks > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Incoming review batch had failed chunks"
+          description: "At least one dynamically mapped chunk in the Airflow batch pipeline failed."
 
       - alert: SentimentApiLatencyHigh
-        expr: histogram_quantile(0.95, sum(rate(sentiment_model_inference_latency_seconds_bucket[2m])) by (le)) > 0.2
+        expr: sentiment:inference_latency_p95_seconds:5m > 0.2
         for: 2m
         labels:
           severity: warning
+          team: mlops
+          service: sentiment-analyzer
         annotations:
           summary: "P95 inference latency is above 200 ms"
+          description: "The model serving path is slower than the stated business success criterion."
 
+      - alert: SentimentApiLatencyAnomaly
+        expr: sentiment:inference_latency_p95_seconds:5m > avg_over_time(sentiment:inference_latency_p95_seconds:5m[1h]) * 1.8 and sentiment:inference_latency_p95_seconds:5m > 0.2
+        for: 3m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "P95 inference latency is anomalous"
+          description: "Recent p95 inference latency is materially higher than the trailing one-hour baseline."
+
+      - alert: SentimentApiProcessMemoryHigh
+        expr: sentiment_process_resident_memory_bytes > 536870912
+        for: 5m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Sentiment API process memory is above 512 MiB"
+          description: "High API process memory can indicate a leak, unexpectedly large model artifact, or traffic pressure."
+
+      - alert: SentimentApiProcessCpuHigh
+        expr: sentiment_process_cpu_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Sentiment API process CPU is high"
+          description: "The API process is consuming high CPU, which can explain slow inference or request queuing."
+
+  - name: infrastructure-alerts
+    interval: 15s
+    rules:
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Node exporter is unavailable"
+          description: "Prometheus cannot scrape local infrastructure metrics, so CPU, memory, and disk correlation is unavailable."
+
+      - alert: HostCpuUsageHigh
+        expr: node:cpu_usage_percent:2m > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Host CPU usage is above 85%"
+          description: "High CPU usage can explain slow model inference or delayed pipeline tasks."
+
+      - alert: HostMemoryUsageHigh
+        expr: node:memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Host memory usage is above 85%"
+          description: "High memory pressure can destabilize Airflow, MLflow, or the API service."
+
+      - alert: HostDiskUsageHigh
+        expr: node:disk_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "Host disk usage is above 85%"
+          description: "Disk pressure can block DVC artifacts, MLflow artifacts, logs, and Docker volumes."
+
+      - alert: AlertManagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: mlops
+          service: sentiment-analyzer
+        annotations:
+          summary: "AlertManager is unavailable"
+          description: "Prometheus alert rules may fire, but notifications and silences are unavailable."

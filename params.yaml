@@ -1,0 +1,92 @@
+data:
+  dataset_name: SetFit/amazon_reviews_multi_en
+  dataset_split: train
+  max_rows_total: 15000
+  allowed_ratings:
+    - 1
+    - 3
+    - 5
+  min_text_length: 20
+  max_text_length: 3000
+  validation_size: 0.15
+  test_size: 0.15
+  random_seed: 42
+  fallback_to_seed_data: true
+  seed_rows_per_class: 300
+  source_homepage: https://huggingface.co/datasets/SetFit/amazon_reviews_multi_en
+
+training:
+  random_seed: 42
+  acceptance_test_macro_f1: 0.75
+  acceptance_latency_ms: 200.0
+  latency_sample_size: 50
+  candidates:
+    - name: tfidf_logistic_baseline
+      model_type: tfidf_logistic_regression
+      vectorizer: tfidf
+      max_features: 2500
+      ngram_range:
+        - 1
+        - 2
+      min_df: 2
+      sublinear_tf: false
+      classifier: LogisticRegression
+      classifier_params:
+        C: 1.0
+        max_iter: 1000
+        class_weight: balanced
+    - name: tfidf_logistic_regularized
+      model_type: tfidf_logistic_regression
+      vectorizer: tfidf
+      max_features: 30000
+      ngram_range:
+        - 1
+        - 2
+      min_df: 2
+      sublinear_tf: true
+      classifier: LogisticRegression
+      classifier_params:
+        C: 1.5
+        max_iter: 2000
+        class_weight: balanced
+    - name: tfidf_logistic_tuned
+      model_type: tfidf_logistic_regression
+      vectorizer: tfidf
+      max_features: 80000
+      ngram_range:
+        - 1
+        - 3
+      min_df: 1
+      sublinear_tf: true
+      classifier: LogisticRegression
+      classifier_params:
+        C: 3.0
+        max_iter: 2500
+        class_weight: balanced
+    - name: tfidf_sgd_log_loss
+      model_type: tfidf_sgd_classifier
+      vectorizer: tfidf
+      max_features: 80000
+      ngram_range:
+        - 1
+        - 3
+      min_df: 2
+      sublinear_tf: true
+      classifier: SGDClassifier
+      classifier_params:
+        alpha: 0.00001
+        loss: log_loss
+        max_iter: 2000
+        class_weight: balanced
+    - name: count_naive_bayes
+      model_type: count_multinomial_naive_bayes
+      vectorizer: count
+      max_features: 50000
+      ngram_range:
+        - 1
+        - 2
+      min_df: 2
+      sublinear_tf: false
+      classifier: MultinomialNB
+      classifier_params:
+        alpha: 0.5

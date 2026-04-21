@@ -1,6 +1,17 @@
 stages:
   ingest:
     cmd: python -m ml.data_ingestion.ingest --config configs/data_config.json
+    params:
+      - data.dataset_name
+      - data.dataset_split
+      - data.max_rows_total
+      - data.allowed_ratings
+      - data.min_text_length
+      - data.max_text_length
+      - data.random_seed
+      - data.fallback_to_seed_data
+      - data.seed_rows_per_class
+      - data.source_homepage
     deps:
       - configs/data_config.json
       - ml/data_ingestion/ingest.py
@@ -14,10 +25,14 @@ stages:
 
   validate:
     cmd: python -m ml.validation.validate_data --config configs/data_config.json
+    params:
+      - data.min_text_length
+      - data.max_text_length
     deps:
       - configs/data_config.json
       - data/raw/reviews.csv
       - ml/validation/validate_data.py
+      - ml/common.py
       - ml/monitoring/performance.py
     metrics:
       - reports/data_validation.json:
@@ -39,10 +54,17 @@ stages:
 
   preprocess:
     cmd: python -m ml.preprocessing.preprocess --config configs/data_config.json
+    params:
+      - data.min_text_length
+      - data.max_text_length
+      - data.validation_size
+      - data.test_size
+      - data.random_seed
     deps:
       - configs/data_config.json
       - data/raw/reviews.csv
       - ml/preprocessing/preprocess.py
+      - ml/common.py
       - ml/monitoring/performance.py
     outs:
       - data/interim/rejected_reviews.csv
@@ -67,32 +89,62 @@ stages:
 
   train:
     cmd: python -m ml.training.train
+    params:
+      - training
     deps:
       - data/processed/train.csv
       - data/processed/validation.csv
       - data/processed/test.csv
       - ml/training/train.py
+      - ml/serving/pyfunc_model.py
+      - ml/common.py
       - ml/monitoring/performance.py
     outs:
       - models/sentiment_model.joblib
+      - models/mlflow_model
       - models/model_metadata.json
       - models/feature_importance.json
       - reports/model_comparison.md
+      - reports/model_comparison_plot.csv
     metrics:
       - reports/training_metrics.json:
           cache: false
       - reports/model_comparison.json:
           cache: false
+      - reports/model_optimization_report.json:
+          cache: false
 
   evaluate:
     cmd: python -m ml.evaluation.evaluate
+    params:
+      - training.acceptance_test_macro_f1
+      - training.acceptance_latency_ms
     deps:
       - models/sentiment_model.joblib
       - data/processed/test.csv
       - ml/evaluation/evaluate.py
+      - ml/common.py
       - ml/monitoring/performance.py
+    outs:
+      - reports/confusion_matrix.csv
     metrics:
       - reports/evaluation.json:
+          cache: false
+      - reports/final_metrics.json:
+          cache: false
+
+  accept:
+    cmd: python -m ml.evaluation.check_acceptance
+    params:
+      - training.acceptance_test_macro_f1
+      - training.acceptance_latency_ms
+    deps:
+      - reports/evaluation.json
+      - reports/final_metrics.json
+      - ml/evaluation/check_acceptance.py
+      - ml/common.py
+    metrics:
+      - reports/acceptance_gate.json:
           cache: false
 
   drift:
@@ -100,6 +152,7 @@ stages:
     deps:
       - data/baselines/feature_baseline.json
       - data/processed/test.csv
+      - reports/acceptance_gate.json
       - ml/monitoring/drift.py
       - ml/monitoring/performance.py
     metrics:
@@ -117,6 +170,7 @@ stages:
       - reports/training_metrics.json
       - reports/model_comparison.json
       - reports/evaluation.json
+      - reports/acceptance_gate.json
       - reports/drift_report.json
       - ml/monitoring/publish_report.py
       - ml/monitoring/performance.py
@@ -125,3 +179,14 @@ stages:
           cache: false
       - reports/pipeline_performance.json:
           cache: false
+
+plots:
+  - reports/model_comparison_plot.csv:
+      x: candidate_rank
+      y:
+        - validation_macro_f1
+        - test_macro_f1
+        - test_accuracy
+  - reports/confusion_matrix.csv:
+      x: cell_index
+      y: count

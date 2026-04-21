@@ -1,51 +1,103 @@
 # Test Plan
 
-## Strategy
+## Objective
 
-Testing covers data quality, ML pipeline utilities, API contracts, monitoring output, and frontend build readiness. The goal is to show that the application meets the professor's acceptance criteria and can be reproduced locally.
+The test plan proves that the application is usable, reproducible, deployable, observable, and aligned with the course acceptance criteria. Tests cover data quality, preprocessing, training utilities, API contracts, monitoring, frontend build, Docker packaging, DVC reproducibility, and Airflow DAG importability.
+
+## Test Strategy
+
+| Test layer | Purpose | Tools |
+| --- | --- | --- |
+| Unit tests | Validate pure functions and module behavior | `pytest` |
+| API contract tests | Verify endpoint schemas and error behavior | `pytest`, FastAPI test client |
+| Pipeline tests | Verify data validation, preprocessing, drift, acceptance gate | `pytest`, DVC |
+| Frontend build test | Verify React app compiles | `npm run build` |
+| Static checks | Verify Python style and syntax | `ruff`, `bash -n` |
+| Docker checks | Validate Compose and image builds | `docker compose config`, `docker compose build` |
+| Monitoring checks | Validate Prometheus and AlertManager config | `promtool`, `amtool` or containerized validation |
+| Smoke tests | Verify demo services respond | `scripts/docker_smoke.sh` |
 
 ## Test Cases
 
 | ID | Area | Scenario | Expected Result |
 | --- | --- | --- | --- |
 | T01 | Data | Rating-to-sentiment mapping | Ratings 1-2 negative, 3 neutral, 4-5 positive |
-| T02 | Data | Valid raw schema | Validation passes |
-| T03 | Data | Invalid rating | Validation fails with clear error |
-| T04 | Pipeline | Seed data generation | Balanced classes and required columns |
-| T05 | Ingestion | Hugging Face schema mapping | Source row maps to canonical project schema |
-| T06 | EDA | EDA report generation | JSON, Markdown, and chart artifacts are generated |
-| T07 | Pipeline | Text cleaning | Whitespace normalized |
-| T08 | Pipeline | Baseline statistics | Text, label, rating, and TF-IDF stats are generated |
-| T09 | Preprocessing | Rejected-row audit | Filtered rows are written with rejection reasons |
-| T10 | Training | Model selection rule | Best accepted model is selected by validation macro F1 |
-| T11 | Monitoring | Distribution drift utility | Identical distributions produce zero delta |
-| T12 | API | `/health` | Returns HTTP 200 and service status |
-| T13 | API | `/ready` | Returns model loaded/fallback state |
-| T14 | API | `/predict` | Returns sentiment, confidence, probabilities, explanation, model metadata, and latency |
-| T15 | API | `/feedback` | Stores ground-truth feedback |
-| T16 | API | `/metrics` | Exposes Prometheus metrics |
-| T17 | Frontend | React build | Production bundle builds successfully |
-| T18 | Docker | Compose config | Docker Compose validates service graph |
-| T19 | DVC | `dvc repro` | Reproduces lifecycle pipeline |
-| T20 | Pipeline | Performance report | Stage duration and throughput are recorded |
+| T02 | Data | Seed fallback generation | Balanced classes, unique normalized reviews, required columns |
+| T03 | Ingestion | Hugging Face schema mapping | Source row maps to canonical schema |
+| T04 | Validation | Valid raw data | Validation report has `status=success` |
+| T05 | Validation | Invalid rating | Validation fails with clear error |
+| T06 | Validation | Duplicate text | Warning is recorded, not silently ignored |
+| T07 | EDA | Report generation | JSON, Markdown, and chart artifacts are generated |
+| T08 | Preprocessing | Text cleaning | Whitespace normalized and bad rows audited |
+| T09 | Preprocessing | Fixed split | Train/validation/test splits are deterministic |
+| T10 | Features | Drift baseline | Text length, class distribution, rating distribution, TF-IDF stats saved |
+| T11 | Training | Candidate comparison | Multiple candidates are logged and compared |
+| T12 | Training | Model metadata | Git commit, DVC data version, MLflow run ID saved |
+| T13 | Evaluation | Acceptance gate pass | Accepted model writes `reports/acceptance_gate.json` |
+| T14 | Evaluation | Acceptance gate fail | Gate exits nonzero when F1/latency fail |
+| T15 | Monitoring | Drift calculation | Stable data reports no drift above threshold |
+| T16 | API | `/health` | Returns HTTP 200 and service name |
+| T17 | API | `/ready` | Reports model loaded and fallback state |
+| T18 | API | `/predict` | Returns sentiment, probabilities, explanation, model metadata, latency |
+| T19 | API | invalid prediction request | Returns structured `422` and increments invalid-review metric |
+| T20 | API | `/feedback` | Stores feedback and updates feedback metrics |
+| T21 | API | `/model/info` | Returns run ID, model version, Git commit, DVC version |
+| T22 | API | `/metrics` | Exposes Prometheus text-format metrics |
+| T23 | API | `/metrics-summary` | Returns frontend-friendly pipeline/model/drift summary |
+| T24 | API | `/monitoring/refresh` | Refreshes report-backed gauges |
+| T25 | Frontend | Analyzer build | Production bundle builds |
+| T26 | Frontend | Analyzer UX | Empty/long/API-error states are visible |
+| T27 | Frontend | MLOps screen | Pipeline stages, recent events, metrics, tool links render from summary |
+| T28 | DVC | `dvc repro` | Lifecycle reproduces through acceptance, drift, and publish |
+| T29 | DVC | `dvc status` | Pipeline reports up to date |
+| T30 | DVC | `dvc metrics show` | Current metrics are visible |
+| T31 | Docker | Compose config | Service graph validates |
+| T32 | Docker | Image builds | API, frontend, and Airflow images build |
+| T33 | Airflow | DAG import | Training and batch DAGs import with zero errors |
+| T34 | Monitoring | Prometheus rules | Scrape config, recording rules, and alerts validate |
+| T35 | Monitoring | AlertManager config | Routing and receiver config validates |
+| T36 | End-to-end | Docker smoke test | Frontend, API, MLflow, Airflow, Prometheus, Grafana respond |
 
 ## Acceptance Criteria
 
+The project is accepted for demo when:
+
 - `pytest` passes.
-- `npm run build` passes for the frontend.
-- `docker compose config` validates.
-- `dvc repro` produces raw data, EDA artifacts, processed splits, baselines, model artifacts, evaluation, drift report, and pipeline report.
-- `/predict` responds under `200 ms` for the baseline model on typical local hardware.
-- MLflow contains the training run and model artifacts.
-- MLflow contains multiple candidate runs and a selected model run.
-- Airflow has a successful DAG run for `sentiment_training_pipeline`.
-- Grafana dashboard shows live Prometheus metrics.
+- `ruff check .` passes.
+- `npm run build` passes.
+- `docker compose config` passes.
+- `dvc repro` succeeds from ingestion through publish.
+- `dvc status` reports the pipeline up to date.
+- The selected model has test macro F1 `>= 0.75`.
+- The selected model latency is `< 200 ms` for typical single-review inference.
+- MLflow contains candidate model runs and the selected run ID.
+- The API `/ready` reports trained model loaded.
+- The frontend analyzer can produce predictions and submit feedback.
+- The frontend MLOps screen shows status-aware pipeline stages and recent events.
+- Airflow DAGs import and can be shown in the Airflow UI.
+- Prometheus and AlertManager configs validate.
+- Grafana dashboards are provisioned.
+
+## Manual Demo Checks
+
+Before the viva:
+
+1. Start the stack with `make docker-up`.
+2. Run `make docker-smoke`.
+3. Open `http://localhost:5173`.
+4. Submit positive, neutral, and negative reviews.
+5. Submit feedback for at least one prediction.
+6. Open the MLOps tab and press Refresh.
+7. Confirm the pipeline timeline shows stage status and recent events.
+8. Open Airflow, MLflow, Prometheus, Grafana, and AlertManager links from the UI.
+9. Stop the stack with `make docker-down`.
 
 ## Test Report Template
 
-| Date | Command | Total | Passed | Failed | Notes |
+| Date | Command or Check | Total | Passed | Failed | Notes |
 | --- | --- | ---: | ---: | ---: | --- |
 | Fill during demo prep | `pytest` |  |  |  |  |
 | Fill during demo prep | `npm run build` |  |  |  |  |
 | Fill during demo prep | `dvc repro` |  |  |  |  |
 | Fill during demo prep | `docker compose config` |  |  |  |  |
+| Fill during demo prep | `make docker-smoke` |  |  |  |  |

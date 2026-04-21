@@ -1,0 +1,42 @@
+groups:
+  - name: sentiment-recording-rules
+    interval: 15s
+    rules:
+      - record: sentiment:api_requests_per_second:1m
+        expr: sum(rate(sentiment_api_requests_total[1m]))
+
+      - record: sentiment:api_requests_per_second_by_status:1m
+        expr: sum by (status_code) (rate(sentiment_api_requests_total[1m]))
+
+      - record: sentiment:api_error_ratio:5m
+        expr: sum(rate(sentiment_api_requests_total{status_code=~"5.."}[5m])) / clamp_min(sum(rate(sentiment_api_requests_total[5m])), 0.001)
+
+      - record: sentiment:api_non_success_ratio:5m
+        expr: sum(rate(sentiment_api_requests_total{status_code!~"2.."}[5m])) / clamp_min(sum(rate(sentiment_api_requests_total[5m])), 0.001)
+
+      - record: sentiment:invalid_reviews_per_second:5m
+        expr: sum(rate(sentiment_invalid_reviews_total[5m]))
+
+      - record: sentiment:inference_latency_p50_seconds:5m
+        expr: histogram_quantile(0.50, sum(rate(sentiment_model_inference_latency_seconds_bucket[5m])) by (le))
+
+      - record: sentiment:inference_latency_p95_seconds:5m
+        expr: histogram_quantile(0.95, sum(rate(sentiment_model_inference_latency_seconds_bucket[5m])) by (le))
+
+      - record: sentiment:request_latency_p95_seconds:5m
+        expr: histogram_quantile(0.95, sum(rate(sentiment_api_request_latency_seconds_bucket[5m])) by (endpoint, method, le))
+
+      - record: sentiment:stage_latency_p95_seconds:5m
+        expr: histogram_quantile(0.95, sum(rate(sentiment_stage_latency_seconds_bucket[5m])) by (stage, le))
+
+      - record: sentiment:prediction_rate_per_second:1m
+        expr: sum by (sentiment) (rate(sentiment_predictions_total[1m]))
+
+      - record: node:cpu_usage_percent:2m
+        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100)
+
+      - record: node:memory_usage_percent
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+
+      - record: node:disk_usage_percent
+        expr: 100 - ((node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} * 100) / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"})

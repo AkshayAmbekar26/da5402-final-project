@@ -13,6 +13,10 @@ DATA_RAW = ROOT / "data" / "raw"
 DATA_INTERIM = ROOT / "data" / "interim"
 DATA_PROCESSED = ROOT / "data" / "processed"
 DATA_BASELINES = ROOT / "data" / "baselines"
+DATA_INCOMING = ROOT / "data" / "incoming"
+DATA_ARCHIVE = ROOT / "data" / "archive"
+DATA_QUARANTINE = ROOT / "data" / "quarantine"
+DATA_OPS = ROOT / "data" / "ops"
 MODELS = ROOT / "models"
 REPORTS = ROOT / "reports"
 FEEDBACK = ROOT / "feedback"
@@ -22,7 +26,19 @@ RANDOM_SEED = 42
 
 
 def ensure_dirs() -> None:
-    for directory in [DATA_RAW, DATA_INTERIM, DATA_PROCESSED, DATA_BASELINES, MODELS, REPORTS, FEEDBACK]:
+    for directory in [
+        DATA_RAW,
+        DATA_INTERIM,
+        DATA_PROCESSED,
+        DATA_BASELINES,
+        DATA_INCOMING,
+        DATA_ARCHIVE,
+        DATA_QUARANTINE,
+        DATA_OPS,
+        MODELS,
+        REPORTS,
+        FEEDBACK,
+    ]:
         directory.mkdir(parents=True, exist_ok=True)
 
 
@@ -37,6 +53,21 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def read_params(section: str | None = None) -> dict[str, Any]:
+    params_path = Path(os.getenv("PARAMS_PATH", ROOT / "params.yaml"))
+    if not params_path.exists():
+        return {}
+    try:
+        import yaml
+    except ImportError as exc:
+        raise RuntimeError("PyYAML is required to read params.yaml") from exc
+    payload = yaml.safe_load(params_path.read_text(encoding="utf-8")) or {}
+    if section is None:
+        return dict(payload)
+    section_payload = payload.get(section, {})
+    return dict(section_payload) if isinstance(section_payload, dict) else {}
 
 
 def rating_to_sentiment(rating: int) -> str:
