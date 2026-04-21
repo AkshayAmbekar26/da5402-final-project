@@ -123,6 +123,7 @@ jobs:
           RETRIES: "90"
           SLEEP_SECONDS: "3"
           RUN_MLFLOW_SERVING_SMOKE: "true"
+          CHECK_AIRFLOW_INTERNAL: "true"
         run: ./scripts/docker_smoke.sh
       - name: Collect compose logs
         if: failure()

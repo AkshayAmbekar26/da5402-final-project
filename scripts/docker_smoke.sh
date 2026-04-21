@@ -30,7 +30,7 @@ wait_for_url() {
         return 0
       fi
     else
-      if curl --fail --silent --show-error --max-time 10 "$url" >/dev/null; then
+      if curl --fail --silent --max-time 10 "$url" >/dev/null; then
         printf "ok - %s\n" "$name"
         return 0
       fi
@@ -51,6 +51,27 @@ show_airflow_debug() {
   fi
 }
 
+wait_for_airflow() {
+  if [[ "${CHECK_AIRFLOW_INTERNAL:-false}" != "true" ]]; then
+    wait_for_url "airflow" "$AIRFLOW_URL/api/v2/monitor/health"
+    return $?
+  fi
+
+  for attempt in $(seq 1 "$RETRIES"); do
+    if docker compose --profile mlflow-serving exec -T airflow-webserver \
+      python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v2/monitor/health', timeout=10)" >/dev/null 2>&1; then
+      printf "ok - airflow\n"
+      return 0
+    fi
+
+    if [[ "$attempt" == "$RETRIES" ]]; then
+      printf "failed - airflow internal health check\n" >&2
+      return 1
+    fi
+    sleep "$SLEEP_SECONDS"
+  done
+}
+
 predict_payload='{"review_text":"Excellent product quality and fast delivery."}'
 
 wait_for_url "frontend" "$FRONTEND_URL/"
@@ -64,7 +85,7 @@ if [[ "${RUN_MLFLOW_SERVING_SMOKE:-false}" == "true" ]]; then
   wait_for_url "mlflow model server health" "$MLFLOW_MODEL_SERVER_URL/ping"
   wait_for_url "mlflow model server prediction" "$MLFLOW_MODEL_SERVER_URL/invocations" "POST" '{"dataframe_records":[{"review_text":"Excellent product quality and fast delivery."}]}'
 fi
-if ! wait_for_url "airflow" "$AIRFLOW_URL/api/v2/monitor/health"; then
+if ! wait_for_airflow; then
   show_airflow_debug
   exit 1
 fi
