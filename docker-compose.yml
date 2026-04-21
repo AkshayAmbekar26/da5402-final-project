@@ -195,7 +195,12 @@ services:
       ALERT_SMTP_FROM: ${ALERT_SMTP_FROM:-}
       ALERT_SMTP_AUTH_USERNAME: ${ALERT_SMTP_AUTH_USERNAME:-}
       ALERT_SMTP_AUTH_PASSWORD: ${ALERT_SMTP_AUTH_PASSWORD:-}
-    command: api-server --host 0.0.0.0 --port 8080
+    command: >
+      api-server
+      --host 0.0.0.0
+      --port 8080
+      --workers ${AIRFLOW_API_WORKERS:-1}
+      --worker-timeout ${AIRFLOW_API_WORKER_TIMEOUT:-180}
     ports:
       - "8080:8080"
     volumes:
