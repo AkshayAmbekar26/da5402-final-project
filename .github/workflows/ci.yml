@@ -72,6 +72,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [python, frontend, configuration]
     timeout-minutes: 50
+    env:
+      AIRFLOW_CORE_PARALLELISM: "2"
+      AIRFLOW_MAX_ACTIVE_TASKS_PER_DAG: "2"
+      AIRFLOW_SCHEDULER_PARSING_PROCESSES: "1"
+      SENTIMENT_BATCH_SCHEDULE: "manual"
+      SENTIMENT_TRAINING_SCHEDULE: "manual"
+      SENTIMENT_MAINTENANCE_SCHEDULE: "manual"
     steps:
       - uses: actions/checkout@v4
       - name: Restore deployment artifacts

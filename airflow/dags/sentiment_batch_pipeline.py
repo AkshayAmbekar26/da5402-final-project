@@ -54,6 +54,11 @@ def _get_int(name: str, default: int) -> int:
     return int(os.getenv(name, str(default)))
 
 
+def _schedule_interval(name: str, default: str) -> str | None:
+    value = os.getenv(name, default).strip()
+    return None if value.lower() in {"", "none", "manual", "off"} else value
+
+
 def _alert_recipients() -> tuple[str, ...]:
     raw = os.getenv("SENTIMENT_PIPELINE_ALERT_EMAILS") or os.getenv("ALERT_EMAIL_TO", "")
     return tuple(email.strip() for email in raw.split(",") if email.strip())
@@ -164,7 +169,7 @@ with DAG(
     description="Operational incoming-review batch pipeline with sensors, pools, retries, and alerts.",
     default_args=default_args,
     start_date=datetime(2026, 1, 1),
-    schedule=os.getenv("SENTIMENT_BATCH_SCHEDULE", "*/15 * * * *"),
+    schedule=_schedule_interval("SENTIMENT_BATCH_SCHEDULE", "*/15 * * * *"),
     catchup=False,
     max_active_runs=1,
     tags=["sentiment", "mlops", "airflow", "batch-monitoring"],

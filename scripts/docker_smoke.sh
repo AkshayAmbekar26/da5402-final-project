@@ -44,6 +44,13 @@ wait_for_url() {
   done
 }
 
+show_airflow_debug() {
+  if command -v docker >/dev/null 2>&1; then
+    docker compose --profile mlflow-serving ps airflow-webserver airflow-scheduler airflow-dag-processor || true
+    docker compose --profile mlflow-serving logs --tail=250 --no-color airflow-webserver airflow-scheduler airflow-dag-processor || true
+  fi
+}
+
 predict_payload='{"review_text":"Excellent product quality and fast delivery."}'
 
 wait_for_url "frontend" "$FRONTEND_URL/"
@@ -57,7 +64,10 @@ if [[ "${RUN_MLFLOW_SERVING_SMOKE:-false}" == "true" ]]; then
   wait_for_url "mlflow model server health" "$MLFLOW_MODEL_SERVER_URL/ping"
   wait_for_url "mlflow model server prediction" "$MLFLOW_MODEL_SERVER_URL/invocations" "POST" '{"dataframe_records":[{"review_text":"Excellent product quality and fast delivery."}]}'
 fi
-wait_for_url "airflow" "$AIRFLOW_URL/api/v2/monitor/health"
+if ! wait_for_url "airflow" "$AIRFLOW_URL/api/v2/monitor/health"; then
+  show_airflow_debug
+  exit 1
+fi
 wait_for_url "prometheus" "$PROMETHEUS_URL/-/ready"
 wait_for_url "grafana" "$GRAFANA_URL/api/health"
 wait_for_url "alertmanager" "$ALERTMANAGER_URL/-/ready"
