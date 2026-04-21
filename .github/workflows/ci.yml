@@ -83,8 +83,32 @@ jobs:
         run: docker compose --profile mlflow-serving config
       - name: Build deployment images
         run: docker compose --profile mlflow-serving build api frontend mlflow mlflow-model-server airflow-init airflow-webserver airflow-scheduler airflow-dag-processor
+      - name: Prepare writable deployment workspace
+        run: |
+          mkdir -p \
+            data/raw \
+            data/interim/batches \
+            data/processed \
+            data/baselines \
+            data/incoming \
+            data/archive \
+            data/quarantine \
+            data/ops \
+            models \
+            reports/performance \
+            feedback \
+            airflow/logs
+          chmod -R a+rwX data models reports feedback airflow/logs
       - name: Start local deployment stack
-        run: docker compose --profile mlflow-serving up -d
+        run: |
+          set +e
+          docker compose --profile mlflow-serving up -d
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            docker compose --profile mlflow-serving ps || true
+            docker compose --profile mlflow-serving logs --no-color postgres airflow-init || true
+            exit "$status"
+          fi
       - name: Show deployment status
         run: docker compose --profile mlflow-serving ps
       - name: Run deployment smoke test
