@@ -104,8 +104,9 @@ jobs:
             models \
             reports/performance \
             feedback \
+            airflow/config \
             airflow/logs
-          chmod -R a+rwX data models reports feedback airflow/logs
+          chmod -R a+rwX data models reports feedback airflow/config airflow/logs
       - name: Start local deployment stack
         run: |
           set +e
