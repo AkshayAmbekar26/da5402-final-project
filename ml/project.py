@@ -60,7 +60,9 @@ def run_lifecycle(config_path: Path) -> None:
     from ml.evaluation.evaluate import evaluate
     from ml.features.compute_baseline import compute_baseline
     from ml.monitoring.drift import detect_drift
+    from ml.monitoring.prepare_feedback import prepare_feedback
     from ml.monitoring.publish_report import publish_pipeline_report
+    from ml.preprocessing.merge_feedback import merge_feedback
     from ml.preprocessing.preprocess import preprocess
     from ml.training.train import train
     from ml.validation.validate_data import validate_data
@@ -69,8 +71,10 @@ def run_lifecycle(config_path: Path) -> None:
     validate_data(config_path=config_path)
     analyze(config_path=config_path)
     preprocess(config_path=config_path)
-    compute_baseline()
-    train()
+    prepare_feedback()
+    merge_feedback()
+    compute_baseline(input_path=ROOT / "data" / "processed" / "train_augmented.csv")
+    train(train_path=ROOT / "data" / "processed" / "train_augmented.csv")
     evaluate()
     detect_drift()
     publish_pipeline_report()

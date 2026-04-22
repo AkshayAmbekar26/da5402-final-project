@@ -15,6 +15,13 @@ data:
   seed_rows_per_class: 300
   source_homepage: https://huggingface.co/datasets/SetFit/amazon_reviews_multi_en
 
+feedback:
+  min_corrections_for_retraining: 10
+  correction_window_hours: 72
+  max_feedback_rows: 1000
+  min_text_length: 20
+  max_text_length: 3000
+
 training:
   random_seed: 42
   acceptance_test_macro_f1: 0.75

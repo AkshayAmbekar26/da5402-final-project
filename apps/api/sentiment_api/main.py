@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from time import perf_counter
 
 from fastapi import FastAPI, HTTPException, Request
@@ -18,6 +20,7 @@ from apps.api.sentiment_api.metrics import (
     ACTIVE_REQUESTS,
     ALERT_NOTIFICATION_COUNT,
     ERROR_COUNT,
+    FEEDBACK_CORRECTION_COUNT,
     FEEDBACK_COUNT,
     GROUND_TRUTH_MATCH_COUNT,
     INFERENCE_LATENCY,
@@ -136,10 +139,21 @@ def predict(payload: PredictRequest) -> PredictResponse:
 @app.post("/feedback", response_model=FeedbackResponse)
 def feedback(payload: FeedbackRequest) -> FeedbackResponse:
     settings.feedback_path.parent.mkdir(parents=True, exist_ok=True)
+    record = payload.model_dump()
+    is_correction = payload.predicted_sentiment != payload.actual_sentiment
+    record.update(
+        {
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+            "feedback_type": "correction" if is_correction else "confirmation",
+            "is_correction": is_correction,
+        }
+    )
     with settings.feedback_path.open("a", encoding="utf-8") as handle:
-        handle.write(payload.model_dump_json() + "\n")
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
     FEEDBACK_COUNT.labels(actual_sentiment=payload.actual_sentiment).inc()
-    if payload.predicted_sentiment == payload.actual_sentiment:
+    if is_correction:
+        FEEDBACK_CORRECTION_COUNT.inc()
+    else:
         GROUND_TRUTH_MATCH_COUNT.inc()
     return FeedbackResponse(status="accepted", stored=True)
 

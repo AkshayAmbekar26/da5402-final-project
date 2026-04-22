@@ -75,10 +75,40 @@ stages:
       - reports/preprocessing_report.json:
           cache: false
 
-  featurize:
-    cmd: python -m ml.features.compute_baseline
+  prepare_feedback:
+    cmd: python -m ml.monitoring.prepare_feedback --feedback feedback/retraining_feedback.jsonl
+    params:
+      - feedback
+    deps:
+      - feedback/retraining_feedback.jsonl
+      - ml/monitoring/prepare_feedback.py
+      - ml/common.py
+      - ml/monitoring/performance.py
+      - params.yaml
+    outs:
+      - data/interim/validated_feedback.csv
+    metrics:
+      - reports/feedback_preparation_report.json:
+          cache: false
+
+  merge_feedback:
+    cmd: python -m ml.preprocessing.merge_feedback
     deps:
       - data/processed/train.csv
+      - data/interim/validated_feedback.csv
+      - ml/preprocessing/merge_feedback.py
+      - ml/common.py
+      - ml/monitoring/performance.py
+    outs:
+      - data/processed/train_augmented.csv
+    metrics:
+      - reports/feedback_merge_report.json:
+          cache: false
+
+  featurize:
+    cmd: python -m ml.features.compute_baseline --input data/processed/train_augmented.csv
+    deps:
+      - data/processed/train_augmented.csv
       - ml/features/compute_baseline.py
       - ml/monitoring/performance.py
     outs:
@@ -88,13 +118,15 @@ stages:
           cache: false
 
   train:
-    cmd: python -m ml.training.train
+    cmd: python -m ml.training.train --train data/processed/train_augmented.csv
     params:
       - training
     deps:
-      - data/processed/train.csv
+      - data/processed/train_augmented.csv
       - data/processed/validation.csv
       - data/processed/test.csv
+      - reports/feedback_preparation_report.json
+      - reports/feedback_merge_report.json
       - ml/training/train.py
       - ml/serving/pyfunc_model.py
       - ml/common.py
@@ -166,6 +198,8 @@ stages:
       - reports/data_validation.json
       - reports/eda_report.json
       - reports/preprocessing_report.json
+      - reports/feedback_preparation_report.json
+      - reports/feedback_merge_report.json
       - reports/feature_baseline_report.json
       - reports/training_metrics.json
       - reports/model_comparison.json

@@ -34,6 +34,8 @@ REPORT_MAP = {
     "validation": Path("reports/data_validation.json"),
     "eda": Path("reports/eda_report.json"),
     "preprocessing": Path("reports/preprocessing_report.json"),
+    "feedback_preparation": Path("reports/feedback_preparation_report.json"),
+    "feedback_merge": Path("reports/feedback_merge_report.json"),
     "model_comparison": Path("reports/model_comparison.json"),
     "model_optimization": Path("reports/model_optimization_report.json"),
     "evaluation": Path("reports/evaluation.json"),

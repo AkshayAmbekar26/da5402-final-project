@@ -30,6 +30,7 @@ reports/*.png
 reports/performance/
 dvc_plots/
 feedback/*.jsonl
+!feedback/retraining_feedback.jsonl
 logs/*.log
 mlruns/
 .dvc/cache/

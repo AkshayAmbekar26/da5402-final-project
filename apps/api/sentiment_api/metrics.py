@@ -118,6 +118,10 @@ FEEDBACK_COUNT = Counter(
     "Ground-truth feedback submissions.",
     ["actual_sentiment"],
 )
+FEEDBACK_CORRECTION_COUNT = Counter(
+    "sentiment_feedback_corrections_total",
+    "Feedback submissions where the user corrected the predicted label.",
+)
 GROUND_TRUTH_MATCH_COUNT = Counter(
     "sentiment_feedback_matches_total",
     "Feedback submissions where predicted and actual labels match.",

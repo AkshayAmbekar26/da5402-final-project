@@ -10,6 +10,8 @@ REPORT_FILES = [
     "data_validation.json",
     "eda_report.json",
     "preprocessing_report.json",
+    "feedback_preparation_report.json",
+    "feedback_merge_report.json",
     "feature_baseline_report.json",
     "training_metrics.json",
     "model_comparison.json",
@@ -31,6 +33,7 @@ def publish_pipeline_report() -> dict[str, object]:
     ingestion = reports.get("ingestion_report.json", {})
     eda = reports.get("eda_report.json", {})
     preprocessing = reports.get("preprocessing_report.json", {})
+    feedback_merge = reports.get("feedback_merge_report.json", {})
     comparison = reports.get("model_comparison.json", {})
     evaluation = reports.get("evaluation.json", {})
     drift = reports.get("drift_report.json", {})
@@ -43,6 +46,8 @@ def publish_pipeline_report() -> dict[str, object]:
             "dataset_name": ingestion.get("dataset_name"),
             "raw_rows": ingestion.get("rows"),
             "processed_rows": preprocessing.get("final_rows"),
+            "feedback_rows_used": feedback_merge.get("feedback_rows_used"),
+            "augmented_train_rows": feedback_merge.get("augmented_train_rows"),
             "rejected_rows": preprocessing.get("rejected_rows"),
             "eda_rows": eda.get("rows"),
             "selected_model": comparison.get("selected_candidate"),

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
+
 from fastapi.testclient import TestClient
 
+from apps.api.sentiment_api.config import settings
 from apps.api.sentiment_api.main import app
 
 client = TestClient(app)
@@ -32,7 +35,8 @@ def test_predict_endpoint_returns_contract() -> None:
     assert "mlflow_run_id" in payload
 
 
-def test_feedback_endpoint() -> None:
+def test_feedback_endpoint(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(settings, "feedback_path", tmp_path / "feedback.jsonl")
     response = client.post(
         "/feedback",
         json={
@@ -44,6 +48,10 @@ def test_feedback_endpoint() -> None:
     )
     assert response.status_code == 200
     assert response.json()["stored"] is True
+    stored = json.loads(settings.feedback_path.read_text(encoding="utf-8").splitlines()[-1])
+    assert stored["feedback_type"] == "confirmation"
+    assert stored["is_correction"] is False
+    assert "submitted_at" in stored
 
 
 def test_metrics_endpoint_exposes_prometheus_text() -> None:

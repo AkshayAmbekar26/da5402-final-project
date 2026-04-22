@@ -33,6 +33,8 @@ def should_trigger_retraining() -> bool:
         drift_threshold=float(os.getenv("SENTIMENT_RETRAIN_DRIFT_THRESHOLD", "0.25")),
         min_feedback_count=int(os.getenv("SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT", "10")),
         min_feedback_accuracy=float(os.getenv("SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY", "0.8")),
+        min_correction_count=int(os.getenv("SENTIMENT_RETRAIN_MIN_CORRECTIONS", "10")),
+        correction_window_hours=float(os.getenv("SENTIMENT_RETRAIN_CORRECTION_WINDOW_HOURS", "72")),
         cooldown_hours=float(os.getenv("SENTIMENT_RETRAIN_COOLDOWN_HOURS", "6")),
     )
     return bool(report["should_retrain"])
@@ -71,7 +73,7 @@ with DAG(
         trigger_dag_id="sentiment_training_pipeline",
         conf={
             "triggered_by": "sentiment_monitoring_maintenance",
-            "reason": "drift_or_feedback_threshold",
+            "reason": "drift_feedback_or_correction_threshold",
         },
         wait_for_completion=False,
         reset_dag_run=False,

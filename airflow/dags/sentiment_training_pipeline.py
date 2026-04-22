@@ -54,9 +54,19 @@ with DAG(
         bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.preprocessing.preprocess --config configs/data_config.json",
     )
 
+    prepare_feedback_corrections = BashOperator(
+        task_id="prepare_feedback_corrections",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.monitoring.prepare_feedback",
+    )
+
+    merge_feedback_corrections = BashOperator(
+        task_id="merge_feedback_corrections",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.preprocessing.merge_feedback",
+    )
+
     generate_features = BashOperator(
         task_id="generate_features",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.features.compute_baseline",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.features.compute_baseline --input data/processed/train_augmented.csv",
     )
 
     compute_drift_baseline = BashOperator(
@@ -66,7 +76,7 @@ with DAG(
 
     train_and_compare_models = BashOperator(
         task_id="train_and_compare_models",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.training.train",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.training.train --train data/processed/train_augmented.csv",
     )
 
     evaluate_model = BashOperator(
@@ -94,6 +104,8 @@ with DAG(
         >> validate_raw_data
         >> run_eda
         >> preprocess_data
+        >> prepare_feedback_corrections
+        >> merge_feedback_corrections
         >> generate_features
         >> compute_drift_baseline
         >> train_and_compare_models

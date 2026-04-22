@@ -358,6 +358,8 @@ def dataset_params() -> dict[str, object]:
     params: dict[str, object] = {}
     ingestion_report_path = REPORTS / "ingestion_report.json"
     preprocessing_report_path = REPORTS / "preprocessing_report.json"
+    feedback_preparation_path = REPORTS / "feedback_preparation_report.json"
+    feedback_merge_path = REPORTS / "feedback_merge_report.json"
     if ingestion_report_path.exists():
         ingestion_report = read_json(ingestion_report_path)
         params.update(
@@ -374,6 +376,22 @@ def dataset_params() -> dict[str, object]:
                 "train_rows": preprocessing_report.get("splits", {}).get("train", 0),
                 "validation_rows": preprocessing_report.get("splits", {}).get("validation", 0),
                 "test_rows": preprocessing_report.get("splits", {}).get("test", 0),
+            }
+        )
+    if feedback_preparation_path.exists():
+        feedback_preparation = read_json(feedback_preparation_path)
+        params.update(
+            {
+                "feedback_raw_rows": feedback_preparation.get("raw_feedback_rows", 0),
+                "feedback_valid_correction_rows": feedback_preparation.get("valid_correction_rows", 0),
+            }
+        )
+    if feedback_merge_path.exists():
+        feedback_merge = read_json(feedback_merge_path)
+        params.update(
+            {
+                "feedback_rows_used": feedback_merge.get("feedback_rows_used", 0),
+                "augmented_train_rows": feedback_merge.get("augmented_train_rows", 0),
             }
         )
     return params
@@ -606,13 +624,16 @@ def write_model_optimization_report(
 
 
 def train(
-    train_path: Path = DATA_PROCESSED / "train.csv",
+    train_path: Path | None = None,
     validation_path: Path = DATA_PROCESSED / "validation.csv",
     test_path: Path = DATA_PROCESSED / "test.csv",
 ) -> dict[str, object]:
     """Train all configured candidates, select one, and publish local-production artifacts."""
     stage_start = perf_counter()
     ensure_dirs()
+    if train_path is None:
+        augmented_path = DATA_PROCESSED / "train_augmented.csv"
+        train_path = augmented_path if augmented_path.exists() else DATA_PROCESSED / "train.csv"
     train_df = pd.read_csv(train_path)
     validation_df = pd.read_csv(validation_path)
     test_df = pd.read_csv(test_path)
@@ -656,6 +677,12 @@ def train(
     feature_importance = extract_feature_importance(selected_model)
     write_json(importance_path, {"feature_importance": feature_importance})
     model_size = model_size_bytes(model_path)
+    feedback_merge_report = read_json(REPORTS / "feedback_merge_report.json") if (REPORTS / "feedback_merge_report.json").exists() else {}
+    feedback_preparation_report = (
+        read_json(REPORTS / "feedback_preparation_report.json")
+        if (REPORTS / "feedback_preparation_report.json").exists()
+        else {}
+    )
 
     metadata = {
         "model_name": selected["candidate_name"],
@@ -665,6 +692,7 @@ def train(
         "data_version": data_version,
         "trained_at": utc_now(),
         "model_path": str(model_path),
+        "training_data_path": str(train_path),
         "mlflow_model_uri": f"runs:/{selected['mlflow_run_id']}/model",
         "mlflow_registered_model_name": registered_model_name,
         "mlflow_serving_artifact_path": str(MODELS / "mlflow_model"),
@@ -672,6 +700,8 @@ def train(
         "latency_ms_p50_estimate": float(selected["latency_ms_per_review"]),
         "model_size_bytes": model_size,
         "selection_rule": "highest validation macro F1 among candidates passing test macro F1 and latency gates",
+        "feedback_rows_used": int(feedback_merge_report.get("feedback_rows_used", 0) or 0),
+        "feedback_valid_correction_rows": int(feedback_preparation_report.get("valid_correction_rows", 0) or 0),
     }
     write_json(metadata_path, metadata)
 
@@ -687,6 +717,11 @@ def train(
         "test": selected["test"],
         "latency_ms_per_review": float(selected["latency_ms_per_review"]),
         "model_size_bytes": model_size,
+        "training_data_path": str(train_path),
+        "feedback": {
+            "preparation": feedback_preparation_report,
+            "merge": feedback_merge_report,
+        },
         "metadata": metadata,
         "candidates": [serializable_candidate(candidate) for candidate in candidates],
     }
@@ -705,12 +740,23 @@ def train(
 
     with mlflow.start_run(run_id=str(selected["mlflow_run_id"])):
         mlflow.set_tags({"stage": "selected_model", "selected_for_deployment": "true"})
+        mlflow.log_params(
+            {
+                "training_data_path": str(train_path),
+                "feedback_rows_used": int(feedback_merge_report.get("feedback_rows_used", 0) or 0),
+                "feedback_valid_correction_rows": int(feedback_preparation_report.get("valid_correction_rows", 0) or 0),
+            }
+        )
         mlflow.log_metrics({"model_size_bytes": float(model_size)})
         mlflow.log_artifact(str(training_metrics_path))
         mlflow.log_artifact(str(importance_path))
         mlflow.log_artifact(str(optimization_report_path))
         mlflow.log_artifact(str(REPORTS / "model_comparison.json"))
         mlflow.log_artifact(str(REPORTS / "model_comparison.md"))
+        if (REPORTS / "feedback_preparation_report.json").exists():
+            mlflow.log_artifact(str(REPORTS / "feedback_preparation_report.json"), artifact_path="feedback")
+        if (REPORTS / "feedback_merge_report.json").exists():
+            mlflow.log_artifact(str(REPORTS / "feedback_merge_report.json"), artifact_path="feedback")
         local_mlflow_model_dir = log_and_export_pyfunc_model(
             model_path=model_path,
             metadata_path=metadata_path,
@@ -735,7 +781,7 @@ def train(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train and select sentiment classification model.")
-    parser.add_argument("--train", type=Path, default=DATA_PROCESSED / "train.csv")
+    parser.add_argument("--train", type=Path, default=None)
     parser.add_argument("--validation", type=Path, default=DATA_PROCESSED / "validation.csv")
     parser.add_argument("--test", type=Path, default=DATA_PROCESSED / "test.csv")
     args = parser.parse_args()
