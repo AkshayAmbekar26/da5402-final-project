@@ -8,12 +8,11 @@ from typing import Any
 
 import yaml
 
-from ml.common import ROOT
+from ml.common import path_for, read_params
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the sentiment lifecycle as an MLflow Project.")
-    parser.add_argument("--config-path", type=Path, default=ROOT / "configs" / "data_config.json")
     parser.add_argument("--tracking-uri", type=str, default="file:./mlruns")
     parser.add_argument("--experiment-name", type=str, default="product-review-sentiment")
     parser.add_argument("--registered-model-name", type=str, default="ProductReviewSentimentModel")
@@ -26,8 +25,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_params() -> dict[str, Any]:
-    params_path = ROOT / "params.yaml"
-    return yaml.safe_load(params_path.read_text(encoding="utf-8")) if params_path.exists() else {}
+    return read_params()
 
 
 def apply_overrides(params: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
@@ -54,7 +52,7 @@ def apply_overrides(params: dict[str, Any], args: argparse.Namespace) -> dict[st
     return updated
 
 
-def run_lifecycle(config_path: Path) -> None:
+def run_lifecycle() -> None:
     from ml.data_ingestion.ingest import ingest
     from ml.eda.analyze import analyze
     from ml.evaluation.evaluate import evaluate
@@ -67,14 +65,14 @@ def run_lifecycle(config_path: Path) -> None:
     from ml.training.train import train
     from ml.validation.validate_data import validate_data
 
-    ingest(config_path=config_path)
-    validate_data(config_path=config_path)
-    analyze(config_path=config_path)
-    preprocess(config_path=config_path)
+    ingest()
+    validate_data()
+    analyze()
+    preprocess()
     prepare_feedback()
     merge_feedback()
-    compute_baseline(input_path=ROOT / "data" / "processed" / "train_augmented.csv")
-    train(train_path=ROOT / "data" / "processed" / "train_augmented.csv")
+    compute_baseline(input_path=path_for("train_augmented"))
+    train(train_path=path_for("train_augmented"))
     evaluate()
     detect_drift()
     publish_pipeline_report()
@@ -94,7 +92,7 @@ def main() -> None:
     previous_params_path = os.environ.get("PARAMS_PATH")
     os.environ["PARAMS_PATH"] = temp_params_path
     try:
-        run_lifecycle(config_path=args.config_path)
+        run_lifecycle()
     finally:
         if previous_params_path is None:
             os.environ.pop("PARAMS_PATH", None)

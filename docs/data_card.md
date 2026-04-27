@@ -67,4 +67,4 @@ The preprocessing stage:
 
 ## Reproducibility
 
-The dataset configuration is stored in `configs/data_config.json`. DVC tracks the pipeline stages and generated data artifacts. Model metadata records the Git commit, MLflow run ID, and DVC lock hash.
+The dataset configuration is stored in `params.yaml` under the `data` section. DVC tracks parameterized pipeline stages and generated data artifacts. Model metadata records the Git commit, MLflow run ID, and DVC lock hash.

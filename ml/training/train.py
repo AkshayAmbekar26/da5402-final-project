@@ -29,14 +29,13 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 
 from ml.common import (
-    DATA_PROCESSED,
-    MODELS,
     RANDOM_SEED,
-    REPORTS,
     SENTIMENT_LABELS,
+    dir_for,
     dvc_data_version,
     ensure_dirs,
     git_commit_hash,
+    path_for,
     read_json,
     read_params,
     utc_now,
@@ -321,7 +320,7 @@ def log_and_export_pyfunc_model(
         pip_requirements=mlflow_model_requirements(),
     )
 
-    local_model_dir = MODELS / "mlflow_model"
+    local_model_dir = path_for("mlflow_model_dir")
     if local_model_dir.exists():
         shutil.rmtree(local_model_dir)
     mlflow.pyfunc.save_model(
@@ -338,17 +337,17 @@ def log_and_export_pyfunc_model(
 
 def log_data_artifacts() -> None:
     for artifact_name in [
-        "ingestion_report.json",
-        "data_validation.json",
-        "eda_report.json",
-        "eda_report.md",
-        "preprocessing_report.json",
-        "feature_baseline_report.json",
+        "ingestion_report",
+        "data_validation_report",
+        "eda_report",
+        "eda_markdown",
+        "preprocessing_report",
+        "feature_baseline_report",
     ]:
-        artifact_path = REPORTS / artifact_name
+        artifact_path = path_for(artifact_name)
         if artifact_path.exists():
             mlflow.log_artifact(str(artifact_path), artifact_path="data_quality")
-    figures_dir = REPORTS / "figures"
+    figures_dir = dir_for("report_figures")
     if figures_dir.exists():
         for figure_path in figures_dir.glob("*.png"):
             mlflow.log_artifact(str(figure_path), artifact_path="eda_figures")
@@ -356,10 +355,10 @@ def log_data_artifacts() -> None:
 
 def dataset_params() -> dict[str, object]:
     params: dict[str, object] = {}
-    ingestion_report_path = REPORTS / "ingestion_report.json"
-    preprocessing_report_path = REPORTS / "preprocessing_report.json"
-    feedback_preparation_path = REPORTS / "feedback_preparation_report.json"
-    feedback_merge_path = REPORTS / "feedback_merge_report.json"
+    ingestion_report_path = path_for("ingestion_report")
+    preprocessing_report_path = path_for("preprocessing_report")
+    feedback_preparation_path = path_for("feedback_preparation_report")
+    feedback_merge_path = path_for("feedback_merge_report")
     if ingestion_report_path.exists():
         ingestion_report = read_json(ingestion_report_path)
         params.update(
@@ -503,11 +502,14 @@ def write_model_comparison(
     selected: dict[str, object],
     acceptance_test_macro_f1: float,
     acceptance_latency_ms: float,
-    output_json: Path = REPORTS / "model_comparison.json",
-    output_md: Path = REPORTS / "model_comparison.md",
-    output_plot_csv: Path = REPORTS / "model_comparison_plot.csv",
+    output_json: Path | None = None,
+    output_md: Path | None = None,
+    output_plot_csv: Path | None = None,
 ) -> None:
     """Write both machine-readable and human-readable candidate comparison artifacts."""
+    output_json = output_json or path_for("model_comparison")
+    output_md = output_md or path_for("model_comparison_markdown")
+    output_plot_csv = output_plot_csv or path_for("model_comparison_plot")
     payload = {
         "stage": "model_selection",
         "status": "success",
@@ -569,8 +571,9 @@ def write_model_optimization_report(
     candidates: list[dict[str, object]],
     metadata: dict[str, object],
     acceptance_latency_ms: float,
-    output_path: Path = REPORTS / "model_optimization_report.json",
+    output_path: Path | None = None,
 ) -> dict[str, object]:
+    output_path = output_path or path_for("model_optimization_report")
     selected_latency = float(selected["latency_ms_per_review"])
     model_size_bytes = int(metadata.get("model_size_bytes", 0) or 0)
     candidate_latencies = {
@@ -625,15 +628,17 @@ def write_model_optimization_report(
 
 def train(
     train_path: Path | None = None,
-    validation_path: Path = DATA_PROCESSED / "validation.csv",
-    test_path: Path = DATA_PROCESSED / "test.csv",
+    validation_path: Path | None = None,
+    test_path: Path | None = None,
 ) -> dict[str, object]:
     """Train all configured candidates, select one, and publish local-production artifacts."""
     stage_start = perf_counter()
     ensure_dirs()
     if train_path is None:
-        augmented_path = DATA_PROCESSED / "train_augmented.csv"
-        train_path = augmented_path if augmented_path.exists() else DATA_PROCESSED / "train.csv"
+        augmented_path = path_for("train_augmented")
+        train_path = augmented_path if augmented_path.exists() else path_for("train")
+    validation_path = validation_path or path_for("validation")
+    test_path = test_path or path_for("test")
     train_df = pd.read_csv(train_path)
     validation_df = pd.read_csv(validation_path)
     test_df = pd.read_csv(test_path)
@@ -666,21 +671,23 @@ def train(
     selected = select_best_candidate(candidates)
     selected_model: Pipeline = selected["model"]
 
-    model_path = MODELS / "sentiment_model.joblib"
-    metadata_path = MODELS / "model_metadata.json"
-    importance_path = MODELS / "feature_importance.json"
-    training_metrics_path = REPORTS / "training_metrics.json"
-    optimization_report_path = REPORTS / "model_optimization_report.json"
+    model_path = path_for("sentiment_model")
+    metadata_path = path_for("model_metadata")
+    importance_path = path_for("feature_importance")
+    training_metrics_path = path_for("training_metrics")
+    optimization_report_path = path_for("model_optimization_report")
     registered_model_name = os.getenv("MLFLOW_REGISTERED_MODEL_NAME", "ProductReviewSentimentModel")
 
     joblib.dump(selected_model, model_path)
     feature_importance = extract_feature_importance(selected_model)
     write_json(importance_path, {"feature_importance": feature_importance})
     model_size = model_size_bytes(model_path)
-    feedback_merge_report = read_json(REPORTS / "feedback_merge_report.json") if (REPORTS / "feedback_merge_report.json").exists() else {}
+    feedback_merge_path = path_for("feedback_merge_report")
+    feedback_preparation_path = path_for("feedback_preparation_report")
+    feedback_merge_report = read_json(feedback_merge_path) if feedback_merge_path.exists() else {}
     feedback_preparation_report = (
-        read_json(REPORTS / "feedback_preparation_report.json")
-        if (REPORTS / "feedback_preparation_report.json").exists()
+        read_json(feedback_preparation_path)
+        if feedback_preparation_path.exists()
         else {}
     )
 
@@ -695,7 +702,7 @@ def train(
         "training_data_path": str(train_path),
         "mlflow_model_uri": f"runs:/{selected['mlflow_run_id']}/model",
         "mlflow_registered_model_name": registered_model_name,
-        "mlflow_serving_artifact_path": str(MODELS / "mlflow_model"),
+        "mlflow_serving_artifact_path": str(path_for("mlflow_model_dir")),
         "labels": SENTIMENT_LABELS,
         "latency_ms_p50_estimate": float(selected["latency_ms_per_review"]),
         "model_size_bytes": model_size,
@@ -711,7 +718,7 @@ def train(
         "model_path": str(model_path),
         "metadata_path": str(metadata_path),
         "feature_importance_path": str(importance_path),
-        "model_comparison_path": str(REPORTS / "model_comparison.json"),
+        "model_comparison_path": str(path_for("model_comparison")),
         "selected_candidate": serializable_candidate(selected),
         "validation": selected["validation"],
         "test": selected["test"],
@@ -751,12 +758,12 @@ def train(
         mlflow.log_artifact(str(training_metrics_path))
         mlflow.log_artifact(str(importance_path))
         mlflow.log_artifact(str(optimization_report_path))
-        mlflow.log_artifact(str(REPORTS / "model_comparison.json"))
-        mlflow.log_artifact(str(REPORTS / "model_comparison.md"))
-        if (REPORTS / "feedback_preparation_report.json").exists():
-            mlflow.log_artifact(str(REPORTS / "feedback_preparation_report.json"), artifact_path="feedback")
-        if (REPORTS / "feedback_merge_report.json").exists():
-            mlflow.log_artifact(str(REPORTS / "feedback_merge_report.json"), artifact_path="feedback")
+        mlflow.log_artifact(str(path_for("model_comparison")))
+        mlflow.log_artifact(str(path_for("model_comparison_markdown")))
+        if feedback_preparation_path.exists():
+            mlflow.log_artifact(str(feedback_preparation_path), artifact_path="feedback")
+        if feedback_merge_path.exists():
+            mlflow.log_artifact(str(feedback_merge_path), artifact_path="feedback")
         local_mlflow_model_dir = log_and_export_pyfunc_model(
             model_path=model_path,
             metadata_path=metadata_path,
@@ -782,8 +789,8 @@ def train(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train and select sentiment classification model.")
     parser.add_argument("--train", type=Path, default=None)
-    parser.add_argument("--validation", type=Path, default=DATA_PROCESSED / "validation.csv")
-    parser.add_argument("--test", type=Path, default=DATA_PROCESSED / "test.csv")
+    parser.add_argument("--validation", type=Path, default=path_for("validation"))
+    parser.add_argument("--test", type=Path, default=path_for("test"))
     args = parser.parse_args()
     train(args.train, args.validation, args.test)
 

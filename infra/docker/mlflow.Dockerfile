@@ -7,24 +7,26 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_RETRIES=10
 
 COPY pyproject.toml constraints.txt README.md params.yaml /app/
-COPY configs /app/configs
-COPY ml /app/ml
-COPY apps /app/apps
+
 RUN pip install --default-timeout=300 --retries=10 --no-cache-dir --no-binary pyasn1 pyasn1==0.6.3
 RUN pip install --default-timeout=300 --retries=10 --no-cache-dir -c constraints.txt \
-    "uvicorn[standard]" \
-    fastapi \
-    httpx \
+    alembic \
+    cloudpickle \
+    gunicorn \
     joblib \
+    mlflow-skinny==3.11.1 \
     numpy \
-    prometheus-client \
+    pandas \
     psutil \
-    pydantic-settings \
-    python-json-logger \
     PyYAML \
-    scikit-learn
+    scikit-learn \
+    scipy \
+    sqlalchemy
+RUN pip install --default-timeout=300 --retries=10 --no-cache-dir \
+    Flask \
+    Flask-CORS
+COPY ml /app/ml
 RUN pip install --default-timeout=300 --retries=10 --no-cache-dir --no-deps -e .
-RUN mkdir -p /app/models /app/reports /app/feedback
+RUN mkdir -p /app/models /mlflow/artifacts
 
-EXPOSE 8000
-CMD ["uvicorn", "apps.api.sentiment_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 5000

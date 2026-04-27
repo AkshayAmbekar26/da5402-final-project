@@ -2,42 +2,42 @@ from __future__ import annotations
 
 from time import perf_counter
 
-from ml.common import REPORTS, read_json, utc_now, write_json
+from ml.common import path_for, read_json, utc_now, write_json
 from ml.monitoring.performance import PERFORMANCE_PATH, record_stage_performance
 
-REPORT_FILES = [
-    "ingestion_report.json",
-    "data_validation.json",
-    "eda_report.json",
-    "preprocessing_report.json",
-    "feedback_preparation_report.json",
-    "feedback_merge_report.json",
-    "feature_baseline_report.json",
-    "training_metrics.json",
-    "model_comparison.json",
-    "model_optimization_report.json",
-    "evaluation.json",
-    "acceptance_gate.json",
-    "drift_report.json",
-    "pipeline_performance.json",
+REPORT_ARTIFACTS = [
+    "ingestion_report",
+    "data_validation_report",
+    "eda_report",
+    "preprocessing_report",
+    "feedback_preparation_report",
+    "feedback_merge_report",
+    "feature_baseline_report",
+    "training_metrics",
+    "model_comparison",
+    "model_optimization_report",
+    "evaluation_report",
+    "acceptance_gate",
+    "drift_report",
+    "pipeline_performance",
 ]
 
 
 def publish_pipeline_report() -> dict[str, object]:
     stage_start = perf_counter()
     reports = {}
-    for filename in REPORT_FILES:
-        path = REPORTS / filename
+    for artifact_name in REPORT_ARTIFACTS:
+        path = path_for(artifact_name)
         if path.exists():
-            reports[filename] = read_json(path)
-    ingestion = reports.get("ingestion_report.json", {})
-    eda = reports.get("eda_report.json", {})
-    preprocessing = reports.get("preprocessing_report.json", {})
-    feedback_merge = reports.get("feedback_merge_report.json", {})
-    comparison = reports.get("model_comparison.json", {})
-    evaluation = reports.get("evaluation.json", {})
-    drift = reports.get("drift_report.json", {})
-    performance = reports.get("pipeline_performance.json", {})
+            reports[path.name] = read_json(path)
+    ingestion = reports.get(path_for("ingestion_report").name, {})
+    eda = reports.get(path_for("eda_report").name, {})
+    preprocessing = reports.get(path_for("preprocessing_report").name, {})
+    feedback_merge = reports.get(path_for("feedback_merge_report").name, {})
+    comparison = reports.get(path_for("model_comparison").name, {})
+    evaluation = reports.get(path_for("evaluation_report").name, {})
+    drift = reports.get(path_for("drift_report").name, {})
+    performance = reports.get(path_for("pipeline_performance").name, {})
     payload = {
         "stage": "publish_pipeline_report",
         "status": "success",
@@ -66,18 +66,18 @@ def publish_pipeline_report() -> dict[str, object]:
         },
         "reports": reports,
     }
-    write_json(REPORTS / "pipeline_report.json", payload)
+    write_json(path_for("pipeline_report"), payload)
     record_stage_performance(
         "publish_pipeline_report",
         perf_counter() - stage_start,
         extra={"report_count": len(reports)},
     )
     if PERFORMANCE_PATH.exists():
-        payload["reports"]["pipeline_performance.json"] = read_json(PERFORMANCE_PATH)
-        payload["summary"]["total_duration_seconds"] = payload["reports"]["pipeline_performance.json"].get(
+        payload["reports"][PERFORMANCE_PATH.name] = read_json(PERFORMANCE_PATH)
+        payload["summary"]["total_duration_seconds"] = payload["reports"][PERFORMANCE_PATH.name].get(
             "total_duration_seconds"
         )
-        write_json(REPORTS / "pipeline_report.json", payload)
+        write_json(path_for("pipeline_report"), payload)
     return payload
 
 

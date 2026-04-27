@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from airflow.operators.bash import BashOperator
 
 from airflow import DAG
 
-PROJECT_DIR = os.getenv("PROJECT_DIR", "/opt/airflow/project")
+PROJECT_DIR = Path(os.getenv("PROJECT_DIR", Path.cwd()))
 PYTHON = os.getenv("PYTHON", "python")
 
 
@@ -36,22 +37,22 @@ with DAG(
 ) as dag:
     ingest_data = BashOperator(
         task_id="ingest_data",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.data_ingestion.ingest --config configs/data_config.json",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.data_ingestion.ingest",
     )
 
     validate_raw_data = BashOperator(
         task_id="validate_raw_data",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.validation.validate_data --config configs/data_config.json",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.validation.validate_data",
     )
 
     run_eda = BashOperator(
         task_id="run_eda",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.eda.analyze --config configs/data_config.json",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.eda.analyze",
     )
 
     preprocess_data = BashOperator(
         task_id="preprocess_data",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.preprocessing.preprocess --config configs/data_config.json",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.preprocessing.preprocess",
     )
 
     prepare_feedback_corrections = BashOperator(
@@ -66,17 +67,20 @@ with DAG(
 
     generate_features = BashOperator(
         task_id="generate_features",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.features.compute_baseline --input data/processed/train_augmented.csv",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.features.compute_baseline",
     )
 
     compute_drift_baseline = BashOperator(
         task_id="compute_drift_baseline",
-        bash_command=f"cd {PROJECT_DIR} && test -f data/baselines/feature_baseline.json",
+        bash_command=(
+            f"cd {PROJECT_DIR} && {PYTHON} -c "
+            "'from ml.common import path_for; raise SystemExit(0 if path_for(\"feature_baseline\").exists() else 1)'"
+        ),
     )
 
     train_and_compare_models = BashOperator(
         task_id="train_and_compare_models",
-        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.training.train --train data/processed/train_augmented.csv",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} -m ml.training.train",
     )
 
     evaluate_model = BashOperator(

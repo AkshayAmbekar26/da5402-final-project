@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from ml.common import DATA_INTERIM, DATA_PROCESSED, REPORTS, ensure_dirs, utc_now, write_json
+from ml.common import ensure_dirs, path_for, utc_now, write_json
 from ml.monitoring.performance import timed_stage
 
 SENTIMENT_RATING = {"negative": 1, "neutral": 3, "positive": 5}
@@ -35,13 +35,17 @@ def feedback_to_training_rows(feedback_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def merge_feedback(
-    train_path: Path = DATA_PROCESSED / "train.csv",
-    feedback_path: Path = DATA_INTERIM / "validated_feedback.csv",
-    output_path: Path = DATA_PROCESSED / "train_augmented.csv",
-    report_path: Path = REPORTS / "feedback_merge_report.json",
+    train_path: Path | None = None,
+    feedback_path: Path | None = None,
+    output_path: Path | None = None,
+    report_path: Path | None = None,
 ) -> dict[str, object]:
     """Append validated correction feedback to the training split without changing validation/test sets."""
-    record_performance = report_path == REPORTS / "feedback_merge_report.json"
+    train_path = train_path or path_for("train")
+    feedback_path = feedback_path or path_for("validated_feedback")
+    output_path = output_path or path_for("train_augmented")
+    report_path = report_path or path_for("feedback_merge_report")
+    record_performance = report_path == path_for("feedback_merge_report")
     with timed_stage("merge_feedback_corrections", enabled=record_performance) as perf:
         ensure_dirs()
         train_df = pd.read_csv(train_path)
@@ -81,10 +85,10 @@ def merge_feedback(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Merge validated feedback corrections into the training split.")
-    parser.add_argument("--train", type=Path, default=DATA_PROCESSED / "train.csv")
-    parser.add_argument("--feedback", type=Path, default=DATA_INTERIM / "validated_feedback.csv")
-    parser.add_argument("--output", type=Path, default=DATA_PROCESSED / "train_augmented.csv")
-    parser.add_argument("--report", type=Path, default=REPORTS / "feedback_merge_report.json")
+    parser.add_argument("--train", type=Path, default=path_for("train"))
+    parser.add_argument("--feedback", type=Path, default=path_for("validated_feedback"))
+    parser.add_argument("--output", type=Path, default=path_for("train_augmented"))
+    parser.add_argument("--report", type=Path, default=path_for("feedback_merge_report"))
     args = parser.parse_args()
     report = merge_feedback(args.train, args.feedback, args.output, args.report)
     print(json.dumps(report, indent=2, sort_keys=True))

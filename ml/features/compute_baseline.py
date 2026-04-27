@@ -7,17 +7,20 @@ from time import perf_counter
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
-from ml.common import DATA_BASELINES, DATA_PROCESSED, REPORTS, ensure_dirs, write_json
+from ml.common import ensure_dirs, path_for, write_json
 from ml.monitoring.performance import record_stage_performance
 
 
 def compute_baseline(
-    input_path: Path = DATA_PROCESSED / "train.csv",
-    baseline_output_path: Path = DATA_BASELINES / "feature_baseline.json",
-    report_output_path: Path = REPORTS / "feature_baseline_report.json",
+    input_path: Path | None = None,
+    baseline_output_path: Path | None = None,
+    report_output_path: Path | None = None,
 ) -> dict[str, object]:
     start = perf_counter()
     ensure_dirs()
+    input_path = input_path or path_for("train_augmented")
+    baseline_output_path = baseline_output_path or path_for("feature_baseline")
+    report_output_path = report_output_path or path_for("feature_baseline_report")
     df = pd.read_csv(input_path)
     text_lengths = df["review_text"].astype(str).str.len()
     vectorizer = TfidfVectorizer(max_features=50, ngram_range=(1, 2), stop_words="english")
@@ -79,14 +82,14 @@ def compute_baseline(
             "tracked_feature_variances": len(baseline["tfidf_feature_variances"]),
         },
     )
-    if baseline_output_path == DATA_BASELINES / "feature_baseline.json":
+    if baseline_output_path == path_for("feature_baseline"):
         record_stage_performance("compute_drift_baseline", perf_counter() - start, rows_processed=len(df))
     return baseline
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compute baseline statistics for drift detection.")
-    parser.add_argument("--input", type=Path, default=DATA_PROCESSED / "train.csv")
+    parser.add_argument("--input", type=Path, default=path_for("train_augmented"))
     args = parser.parse_args()
     compute_baseline(args.input)
 

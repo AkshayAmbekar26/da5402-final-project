@@ -9,15 +9,7 @@ from typing import Any
 
 import pandas as pd
 
-from ml.common import ROOT, SENTIMENT_LABELS, rating_to_sentiment, utc_now, write_json
-
-DATA_INCOMING = ROOT / "data" / "incoming"
-DATA_ARCHIVE = ROOT / "data" / "archive"
-DATA_QUARANTINE = ROOT / "data" / "quarantine"
-DATA_BATCH_INTERIM = ROOT / "data" / "interim" / "batches"
-DATA_OPS = ROOT / "data" / "ops"
-BATCH_REPORT_PATH = ROOT / "reports" / "batch_pipeline_report.json"
-OPS_DB_PATH = DATA_OPS / "sentiment_pipeline_ops.db"
+from ml.common import SENTIMENT_LABELS, dir_for, path_for, rating_to_sentiment, utc_now, write_json
 
 REQUIRED_COLUMNS = {"review_text"}
 OPTIONAL_COLUMNS = {"review_id", "rating", "sentiment", "source", "ingested_at"}
@@ -27,12 +19,12 @@ OPTIONAL_COLUMNS = {"review_id", "rating", "sentiment", "source", "ingested_at"}
 class BatchPaths:
     """Filesystem and database locations used by the Airflow batch pipeline."""
 
-    incoming_dir: Path = DATA_INCOMING
-    archive_dir: Path = DATA_ARCHIVE
-    quarantine_dir: Path = DATA_QUARANTINE
-    interim_dir: Path = DATA_BATCH_INTERIM
-    ops_db_path: Path = OPS_DB_PATH
-    report_path: Path = BATCH_REPORT_PATH
+    incoming_dir: Path = dir_for("data_incoming")
+    archive_dir: Path = dir_for("data_archive")
+    quarantine_dir: Path = dir_for("data_quarantine")
+    interim_dir: Path = dir_for("data_batch_interim")
+    ops_db_path: Path = path_for("ops_db")
+    report_path: Path = path_for("batch_pipeline_report")
 
 
 DEFAULT_BATCH_PATHS = BatchPaths()
@@ -58,14 +50,16 @@ def compute_file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def select_oldest_csv(incoming_dir: Path = DATA_INCOMING) -> Path:
+def select_oldest_csv(incoming_dir: Path | None = None) -> Path:
+    incoming_dir = incoming_dir or dir_for("data_incoming")
     candidates = sorted(incoming_dir.glob("*.csv"), key=lambda path: (path.stat().st_mtime, path.name))
     if not candidates:
         raise FileNotFoundError(f"No incoming review batch files were found in {incoming_dir}.")
     return candidates[0]
 
 
-def connect_ops_db(db_path: Path = OPS_DB_PATH) -> sqlite3.Connection:
+def connect_ops_db(db_path: Path | None = None) -> sqlite3.Connection:
+    db_path = db_path or path_for("ops_db")
     db_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row

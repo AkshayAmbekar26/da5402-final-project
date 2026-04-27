@@ -5,10 +5,10 @@ from contextlib import contextmanager
 from time import perf_counter
 from typing import Any
 
-from ml.common import REPORTS, read_json, utc_now, write_json
+from ml.common import dir_for, path_for, read_json, utc_now, write_json
 
-PERFORMANCE_PATH = REPORTS / "pipeline_performance.json"
-PERFORMANCE_DIR = REPORTS / "performance"
+PERFORMANCE_PATH = path_for("pipeline_performance")
+PERFORMANCE_DIR = dir_for("report_performance")
 
 
 def load_performance_report() -> dict[str, Any]:

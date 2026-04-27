@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from ml.common import FEEDBACK, REPORTS, write_json
+from ml.common import path_for, write_json
 
 
 def parse_feedback_time(row: dict[str, Any]) -> datetime | None:
@@ -90,9 +90,9 @@ def previous_trigger_time(report_path: Path) -> datetime | None:
 
 def evaluate_retraining_policy(
     *,
-    drift_report_path: Path = REPORTS / "drift_report.json",
-    feedback_path: Path = FEEDBACK / "feedback.jsonl",
-    output_path: Path = REPORTS / "maintenance_report.json",
+    drift_report_path: Path | None = None,
+    feedback_path: Path | None = None,
+    output_path: Path | None = None,
     drift_threshold: float | None = None,
     min_feedback_count: int | None = None,
     min_feedback_accuracy: float | None = None,
@@ -101,6 +101,9 @@ def evaluate_retraining_policy(
     cooldown_hours: float | None = None,
 ) -> dict[str, Any]:
     """Decide whether the maintenance DAG should trigger a retraining run."""
+    drift_report_path = drift_report_path or path_for("drift_report")
+    feedback_path = feedback_path or path_for("feedback_log")
+    output_path = output_path or path_for("maintenance_report")
     drift_threshold = float(drift_threshold if drift_threshold is not None else os.getenv("SENTIMENT_RETRAIN_DRIFT_THRESHOLD", "0.25"))
     min_feedback_count = int(
         min_feedback_count if min_feedback_count is not None else os.getenv("SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT", "10")
@@ -210,9 +213,9 @@ def evaluate_retraining_policy(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate retraining policy from drift and feedback evidence.")
-    parser.add_argument("--drift-report", type=Path, default=REPORTS / "drift_report.json")
-    parser.add_argument("--feedback", type=Path, default=FEEDBACK / "feedback.jsonl")
-    parser.add_argument("--output", type=Path, default=REPORTS / "maintenance_report.json")
+    parser.add_argument("--drift-report", type=Path, default=path_for("drift_report"))
+    parser.add_argument("--feedback", type=Path, default=path_for("feedback_log"))
+    parser.add_argument("--output", type=Path, default=path_for("maintenance_report"))
     parser.add_argument("--drift-threshold", type=float, default=None)
     parser.add_argument("--min-feedback-count", type=int, default=None)
     parser.add_argument("--min-feedback-accuracy", type=float, default=None)

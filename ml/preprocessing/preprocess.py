@@ -7,14 +7,9 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from ml.common import (
-    DATA_INTERIM,
-    DATA_PROCESSED,
-    DATA_RAW,
     RANDOM_SEED,
-    REPORTS,
-    ROOT,
     ensure_dirs,
-    read_json,
+    path_for,
     read_params,
     write_json,
 )
@@ -34,17 +29,20 @@ def reject_rows(df: pd.DataFrame, mask: pd.Series, reason: str) -> pd.DataFrame:
 
 
 def preprocess(
-    input_path: Path = DATA_RAW / "reviews.csv",
-    config_path: Path = ROOT / "configs" / "data_config.json",
-    processed_dir: Path = DATA_PROCESSED,
-    rejected_output: Path = DATA_INTERIM / "rejected_reviews.csv",
-    report_output_path: Path = REPORTS / "preprocessing_report.json",
+    input_path: Path | None = None,
+    processed_dir: Path | None = None,
+    rejected_output: Path | None = None,
+    report_output_path: Path | None = None,
 ) -> dict[str, object]:
     """Clean reviews, write rejected-row evidence, and create deterministic stratified splits."""
-    record_performance = report_output_path == REPORTS / "preprocessing_report.json"
+    input_path = input_path or path_for("raw_reviews")
+    processed_dir = processed_dir or path_for("train").parent
+    rejected_output = rejected_output or path_for("rejected_reviews")
+    report_output_path = report_output_path or path_for("preprocessing_report")
+    record_performance = report_output_path == path_for("preprocessing_report")
     with timed_stage("preprocess_data", enabled=record_performance) as perf:
         ensure_dirs()
-        config = {**(read_json(config_path) if config_path.exists() else {}), **read_params("data")}
+        config = read_params("data")
         min_text_length = int(config.get("min_text_length", 20))
         max_text_length = int(config.get("max_text_length", 3000))
         validation_size = float(config.get("validation_size", 0.15))
@@ -92,9 +90,9 @@ def preprocess(
         )
 
         outputs = {
-            "train": processed_dir / "train.csv",
-            "validation": processed_dir / "validation.csv",
-            "test": processed_dir / "test.csv",
+            "train": processed_dir / path_for("train").name,
+            "validation": processed_dir / path_for("validation").name,
+            "test": processed_dir / path_for("test").name,
         }
         processed_dir.mkdir(parents=True, exist_ok=True)
         train_df.to_csv(outputs["train"], index=False)
@@ -146,10 +144,9 @@ def preprocess(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Clean and split review data.")
-    parser.add_argument("--input", type=Path, default=DATA_RAW / "reviews.csv")
-    parser.add_argument("--config", type=Path, default=ROOT / "configs" / "data_config.json")
+    parser.add_argument("--input", type=Path, default=path_for("raw_reviews"))
     args = parser.parse_args()
-    preprocess(args.input, args.config)
+    preprocess(args.input)
 
 
 if __name__ == "__main__":

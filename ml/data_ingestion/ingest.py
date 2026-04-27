@@ -2,18 +2,14 @@ from __future__ import annotations
 
 import argparse
 from itertools import cycle
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from ml.common import (
-    DATA_RAW,
-    REPORTS,
-    ROOT,
     ensure_dirs,
+    path_for,
     rating_to_sentiment,
-    read_json,
     read_params,
     utc_now,
     write_json,
@@ -188,20 +184,19 @@ def load_huggingface_reviews(config: dict[str, Any]) -> tuple[pd.DataFrame, dict
     return df, metadata
 
 
-def load_data_config(config_path: Path) -> dict[str, Any]:
-    fallback_config = {
+def load_data_params() -> dict[str, Any]:
+    default_config = {
         "dataset_name": "local_seed_ecommerce_reviews",
         "max_rows_total": 900,
         "fallback_to_seed_data": True,
         "seed_rows_per_class": 300,
         "random_seed": 42,
     }
-    file_config = read_json(config_path) if config_path.exists() else fallback_config
-    return {**file_config, **read_params("data")}
+    return {**default_config, **read_params("data")}
 
 
 def load_cached_public_reviews(config: dict[str, Any]) -> tuple[pd.DataFrame, dict[str, object]] | None:
-    cache_path = DATA_RAW / "reviews.csv"
+    cache_path = path_for("raw_reviews")
     if not cache_path.exists():
         return None
 
@@ -223,10 +218,10 @@ def load_cached_public_reviews(config: dict[str, Any]) -> tuple[pd.DataFrame, di
     }
 
 
-def ingest(config_path: Path = ROOT / "configs" / "data_config.json") -> pd.DataFrame:
+def ingest() -> pd.DataFrame:
     with timed_stage("ingest_data") as perf:
         ensure_dirs()
-        config = load_data_config(config_path)
+        config = load_data_params()
         fallback_used = False
         cache_used = False
         ingestion_error = None
@@ -252,12 +247,12 @@ def ingest(config_path: Path = ROOT / "configs" / "data_config.json") -> pd.Data
                 }
 
         df["sentiment"] = df["rating"].map(rating_to_sentiment)
-        output_path = DATA_RAW / "reviews.csv"
+        output_path = path_for("raw_reviews")
         df.to_csv(output_path, index=False)
         perf["rows_processed"] = int(source_metadata["source_rows_seen"])
         perf["extra"] = {"output_rows": int(len(df)), "fallback_used": fallback_used}
         write_json(
-            REPORTS / "ingestion_report.json",
+            path_for("ingestion_report"),
             {
                 "stage": "ingest_data",
                 "status": "success",
@@ -288,9 +283,8 @@ def ingest(config_path: Path = ROOT / "configs" / "data_config.json") -> pd.Data
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest e-commerce review data.")
-    parser.add_argument("--config", type=Path, default=ROOT / "configs" / "data_config.json")
-    args = parser.parse_args()
-    ingest(config_path=args.config)
+    parser.parse_args()
+    ingest()
 
 
 if __name__ == "__main__":

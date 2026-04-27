@@ -7,7 +7,7 @@ from time import perf_counter
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from ml.common import DATA_BASELINES, DATA_PROCESSED, REPORTS, read_json, write_json
+from ml.common import path_for, read_json, write_json
 from ml.monitoring.performance import record_stage_performance
 
 
@@ -34,11 +34,13 @@ def feature_stat_delta(reference: dict[str, float], current: dict[str, float]) -
 
 
 def detect_drift(
-    baseline_path: Path = DATA_BASELINES / "feature_baseline.json",
-    current_path: Path = DATA_PROCESSED / "test.csv",
+    baseline_path: Path | None = None,
+    current_path: Path | None = None,
 ) -> dict[str, object]:
     """Compare current data with the stored training baseline and publish a drift report."""
     stage_start = perf_counter()
+    baseline_path = baseline_path or path_for("feature_baseline")
+    current_path = current_path or path_for("test")
     baseline = read_json(baseline_path)
     current_df = pd.read_csv(current_path)
     current_lengths = current_df["review_text"].astype(str).str.len()
@@ -89,7 +91,7 @@ def detect_drift(
         "drift_detected": bool(drift_score > 0.25),
         "threshold": 0.25,
     }
-    write_json(REPORTS / "drift_report.json", report)
+    write_json(path_for("drift_report"), report)
     record_stage_performance(
         "run_batch_drift_check",
         perf_counter() - stage_start,
@@ -101,8 +103,8 @@ def detect_drift(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run batch drift detection.")
-    parser.add_argument("--baseline", type=Path, default=DATA_BASELINES / "feature_baseline.json")
-    parser.add_argument("--current", type=Path, default=DATA_PROCESSED / "test.csv")
+    parser.add_argument("--baseline", type=Path, default=path_for("feature_baseline"))
+    parser.add_argument("--current", type=Path, default=path_for("test"))
     args = parser.parse_args()
     detect_drift(args.baseline, args.current)
 

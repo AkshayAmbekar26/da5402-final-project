@@ -8,13 +8,11 @@ import matplotlib
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 
-from ml.common import DATA_RAW, REPORTS, ROOT, ensure_dirs, read_json, write_json
+from ml.common import dir_for, ensure_dirs, path_for, read_params, write_json
 from ml.monitoring.performance import timed_stage
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-
-FIGURES_DIR = REPORTS / "figures"
 
 
 def text_length_summary(lengths: pd.Series) -> dict[str, float | int]:
@@ -104,28 +102,29 @@ def write_markdown_report(report: dict[str, Any], output_path: Path) -> None:
             "",
             "## Generated Figures",
             "",
-            "- `reports/figures/class_distribution.png`",
-            "- `reports/figures/rating_distribution.png`",
-            "- `reports/figures/text_length_distribution.png`",
-            "- `reports/figures/top_tokens_by_sentiment.png`",
-            "",
         ]
     )
+    for figure_path in report["figures"].values():
+        lines.append(f"- `{figure_path}`")
+    lines.append("")
     output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def analyze(
-    input_path: Path = DATA_RAW / "reviews.csv",
-    config_path: Path = ROOT / "configs" / "data_config.json",
-    report_output_path: Path = REPORTS / "eda_report.json",
-    markdown_output_path: Path = REPORTS / "eda_report.md",
-    figures_dir: Path = FIGURES_DIR,
+    input_path: Path | None = None,
+    report_output_path: Path | None = None,
+    markdown_output_path: Path | None = None,
+    figures_dir: Path | None = None,
 ) -> dict[str, Any]:
-    record_performance = report_output_path == REPORTS / "eda_report.json"
+    input_path = input_path or path_for("raw_reviews")
+    report_output_path = report_output_path or path_for("eda_report")
+    markdown_output_path = markdown_output_path or path_for("eda_markdown")
+    figures_dir = figures_dir or dir_for("report_figures")
+    record_performance = report_output_path == path_for("eda_report")
     with timed_stage("run_eda", enabled=record_performance) as perf:
         ensure_dirs()
         figures_dir.mkdir(parents=True, exist_ok=True)
-        config = read_json(config_path) if config_path.exists() else {}
+        config = read_params("data")
         df = pd.read_csv(input_path)
         perf["rows_processed"] = int(len(df))
         perf["extra"] = {"figures_generated": 4}
@@ -146,16 +145,20 @@ def analyze(
             df.assign(_normalized_text=normalized_text).groupby("_normalized_text")["sentiment"].nunique().gt(1).sum()
         )
 
-        plot_bar(class_distribution, "Class distribution", figures_dir / "class_distribution.png")
-        plot_bar(rating_distribution, "Rating distribution", figures_dir / "rating_distribution.png", color="#d58a2a")
-        plot_histogram(text_lengths, "Review text length distribution", figures_dir / "text_length_distribution.png")
+        class_distribution_figure = figures_dir / path_for("class_distribution_figure").name
+        rating_distribution_figure = figures_dir / path_for("rating_distribution_figure").name
+        text_length_distribution_figure = figures_dir / path_for("text_length_distribution_figure").name
+        top_tokens_by_sentiment_figure = figures_dir / path_for("top_tokens_by_sentiment_figure").name
+        plot_bar(class_distribution, "Class distribution", class_distribution_figure)
+        plot_bar(rating_distribution, "Rating distribution", rating_distribution_figure, color="#d58a2a")
+        plot_histogram(text_lengths, "Review text length distribution", text_length_distribution_figure)
         sentiment_token_counts = {
             sentiment: sum(item["count"] for item in terms[:10]) for sentiment, terms in top_by_sentiment.items()
         }
         plot_bar(
             sentiment_token_counts,
             "Top-token volume by sentiment",
-            figures_dir / "top_tokens_by_sentiment.png",
+            top_tokens_by_sentiment_figure,
             color="#6457a6",
         )
 
@@ -183,10 +186,10 @@ def analyze(
             "top_terms_overall": top_terms(df["review_text"], top_k=20),
             "top_terms_by_sentiment": top_by_sentiment,
             "figures": {
-                "class_distribution": str(figures_dir / "class_distribution.png"),
-                "rating_distribution": str(figures_dir / "rating_distribution.png"),
-                "text_length_distribution": str(figures_dir / "text_length_distribution.png"),
-                "top_tokens_by_sentiment": str(figures_dir / "top_tokens_by_sentiment.png"),
+                "class_distribution": str(class_distribution_figure),
+                "rating_distribution": str(rating_distribution_figure),
+                "text_length_distribution": str(text_length_distribution_figure),
+                "top_tokens_by_sentiment": str(top_tokens_by_sentiment_figure),
             },
         }
         write_json(report_output_path, report)
@@ -196,10 +199,9 @@ def analyze(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run exploratory data analysis on raw reviews.")
-    parser.add_argument("--input", type=Path, default=DATA_RAW / "reviews.csv")
-    parser.add_argument("--config", type=Path, default=ROOT / "configs" / "data_config.json")
+    parser.add_argument("--input", type=Path, default=path_for("raw_reviews"))
     args = parser.parse_args()
-    analyze(args.input, args.config)
+    analyze(args.input)
 
 
 if __name__ == "__main__":

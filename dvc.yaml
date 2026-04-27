@@ -1,6 +1,6 @@
 stages:
   ingest:
-    cmd: python -m ml.data_ingestion.ingest --config configs/data_config.json
+    cmd: python -m ml.data_ingestion.ingest
     params:
       - data.dataset_name
       - data.dataset_split
@@ -13,7 +13,6 @@ stages:
       - data.seed_rows_per_class
       - data.source_homepage
     deps:
-      - configs/data_config.json
       - ml/data_ingestion/ingest.py
       - ml/common.py
       - ml/monitoring/performance.py
@@ -24,12 +23,11 @@ stages:
           cache: false
 
   validate:
-    cmd: python -m ml.validation.validate_data --config configs/data_config.json
+    cmd: python -m ml.validation.validate_data
     params:
       - data.min_text_length
       - data.max_text_length
     deps:
-      - configs/data_config.json
       - data/raw/reviews.csv
       - ml/validation/validate_data.py
       - ml/common.py
@@ -39,9 +37,14 @@ stages:
           cache: false
 
   eda:
-    cmd: python -m ml.eda.analyze --config configs/data_config.json
+    cmd: python -m ml.eda.analyze
+    params:
+      - data.dataset_name
+      - data.dataset_split
+      - data.min_text_length
+      - data.max_text_length
+      - data.source_homepage
     deps:
-      - configs/data_config.json
       - data/raw/reviews.csv
       - ml/eda/analyze.py
       - ml/monitoring/performance.py
@@ -53,7 +56,7 @@ stages:
           cache: false
 
   preprocess:
-    cmd: python -m ml.preprocessing.preprocess --config configs/data_config.json
+    cmd: python -m ml.preprocessing.preprocess
     params:
       - data.min_text_length
       - data.max_text_length
@@ -61,7 +64,6 @@ stages:
       - data.test_size
       - data.random_seed
     deps:
-      - configs/data_config.json
       - data/raw/reviews.csv
       - ml/preprocessing/preprocess.py
       - ml/common.py

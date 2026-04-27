@@ -8,11 +8,9 @@ import joblib
 import pandas as pd
 
 from ml.common import (
-    DATA_PROCESSED,
-    MODELS,
-    REPORTS,
     SENTIMENT_LABELS,
     ensure_dirs,
+    path_for,
     read_json,
     read_params,
     write_json,
@@ -21,7 +19,8 @@ from ml.monitoring.performance import record_stage_performance
 from ml.training.train import evaluate_predictions
 
 
-def write_confusion_matrix_plot(metrics: dict[str, object], output_path: Path = REPORTS / "confusion_matrix.csv") -> None:
+def write_confusion_matrix_plot(metrics: dict[str, object], output_path: Path | None = None) -> None:
+    output_path = output_path or path_for("confusion_matrix")
     matrix = metrics["confusion_matrix"]
     rows = []
     cell_index = 0
@@ -40,11 +39,13 @@ def write_confusion_matrix_plot(metrics: dict[str, object], output_path: Path = 
 
 
 def evaluate(
-    model_path: Path = MODELS / "sentiment_model.joblib",
-    test_path: Path = DATA_PROCESSED / "test.csv",
+    model_path: Path | None = None,
+    test_path: Path | None = None,
 ) -> dict[str, object]:
     stage_start = perf_counter()
     ensure_dirs()
+    model_path = model_path or path_for("sentiment_model")
+    test_path = test_path or path_for("test")
     model = joblib.load(model_path)
     test_df = pd.read_csv(test_path)
     start = perf_counter()
@@ -67,13 +68,13 @@ def evaluate(
         "acceptance_threshold_macro_f1": acceptance_threshold,
         "acceptance_latency_ms": acceptance_latency_ms,
     }
-    write_json(REPORTS / "evaluation.json", report)
+    write_json(path_for("evaluation_report"), report)
     selected_model_name = "unknown"
-    metadata_path = MODELS / "model_metadata.json"
+    metadata_path = path_for("model_metadata")
     if metadata_path.exists():
         selected_model_name = str(read_json(metadata_path).get("model_name", "unknown"))
     write_json(
-        REPORTS / "final_metrics.json",
+        path_for("final_metrics"),
         {
             "selected_model": selected_model_name,
             "test_accuracy": float(metrics["accuracy"]),
@@ -96,8 +97,8 @@ def evaluate(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate trained sentiment model.")
-    parser.add_argument("--model", type=Path, default=MODELS / "sentiment_model.joblib")
-    parser.add_argument("--test", type=Path, default=DATA_PROCESSED / "test.csv")
+    parser.add_argument("--model", type=Path, default=path_for("sentiment_model"))
+    parser.add_argument("--test", type=Path, default=path_for("test"))
     args = parser.parse_args()
     evaluate(args.model, args.test)
 

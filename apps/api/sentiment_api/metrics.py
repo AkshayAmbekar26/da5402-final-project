@@ -130,6 +130,43 @@ FEEDBACK_ACCURACY_RATIO = Gauge(
     "sentiment_feedback_accuracy_ratio",
     "Feedback match ratio from locally stored ground-truth feedback.",
 )
+FEEDBACK_OBSERVED_COUNT = Gauge(
+    "sentiment_feedback_observed_count",
+    "Number of feedback records considered by the latest maintenance evaluation.",
+)
+FEEDBACK_CORRECTION_COUNT_GAUGE = Gauge(
+    "sentiment_feedback_correction_count",
+    "Number of correction feedback records considered by the latest maintenance evaluation.",
+)
+FEEDBACK_RECENT_CORRECTIONS = Gauge(
+    "sentiment_feedback_recent_corrections",
+    "Number of correction feedback records inside the maintenance time window.",
+)
+FEEDBACK_MIN_ACCURACY_TARGET = Gauge(
+    "sentiment_feedback_min_accuracy_target",
+    "Configured minimum acceptable feedback accuracy before retraining is recommended.",
+)
+FEEDBACK_MIN_CORRECTIONS_TARGET = Gauge(
+    "sentiment_feedback_min_corrections_target",
+    "Configured minimum number of recent corrections required to recommend retraining.",
+)
+FEEDBACK_MIN_COUNT_TARGET = Gauge(
+    "sentiment_feedback_min_count_target",
+    "Configured minimum number of feedback rows before using feedback accuracy as a maintenance signal.",
+)
+MAINTENANCE_RETRAINING_REQUIRED = Gauge(
+    "sentiment_maintenance_retraining_required",
+    "Whether the latest maintenance policy evaluation recommends retraining.",
+)
+MAINTENANCE_COOLDOWN_ACTIVE = Gauge(
+    "sentiment_maintenance_cooldown_active",
+    "Whether retraining is currently suppressed by the maintenance cooldown window.",
+)
+MAINTENANCE_REASON_ACTIVE = Gauge(
+    "sentiment_maintenance_reason_active",
+    "Whether a particular maintenance trigger reason is active in the latest policy evaluation.",
+    ["reason"],
+)
 
 
 @contextmanager

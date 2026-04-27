@@ -16,11 +16,11 @@ from airflow.sensors.filesystem import FileSensor
 
 from airflow import DAG
 
-PROJECT_DIR = Path(os.getenv("PROJECT_DIR", "/opt/airflow/project"))
+PROJECT_DIR = Path(os.getenv("PROJECT_DIR", Path.cwd()))
 sys.path.insert(0, str(PROJECT_DIR))
 
 from ml.orchestration.batch_ops import (  # noqa: E402
-    BatchPaths,
+    DEFAULT_BATCH_PATHS,
     archive_batch,
     connect_ops_db,
     ensure_batch_dirs,
@@ -34,20 +34,7 @@ from ml.orchestration.batch_ops import (  # noqa: E402
 
 LOGGER = logging.getLogger(__name__)
 
-INCOMING_DIR = PROJECT_DIR / "data" / "incoming"
-ARCHIVE_DIR = PROJECT_DIR / "data" / "archive"
-QUARANTINE_DIR = PROJECT_DIR / "data" / "quarantine"
-INTERIM_DIR = PROJECT_DIR / "data" / "interim" / "batches"
-OPS_DB_PATH = PROJECT_DIR / "data" / "ops" / "sentiment_pipeline_ops.db"
-REPORT_PATH = PROJECT_DIR / "reports" / "batch_pipeline_report.json"
-PATHS = BatchPaths(
-    incoming_dir=INCOMING_DIR,
-    archive_dir=ARCHIVE_DIR,
-    quarantine_dir=QUARANTINE_DIR,
-    interim_dir=INTERIM_DIR,
-    ops_db_path=OPS_DB_PATH,
-    report_path=REPORT_PATH,
-)
+PATHS = DEFAULT_BATCH_PATHS
 
 
 def _get_int(name: str, default: int) -> int:
@@ -117,7 +104,7 @@ def send_dry_pipeline_alert(context: dict) -> None:
     html_body = (
         "<html><body>"
         "<h2>No Incoming Review Batch Detected</h2>"
-        f"<p>The FileSensor timed out while watching <code>{INCOMING_DIR}</code>.</p>"
+        f"<p>The FileSensor timed out while watching <code>{PATHS.incoming_dir}</code>.</p>"
         f"<p>DAG: <strong>{context.get('dag').dag_id if context.get('dag') else 'unknown'}</strong></p>"
         "<p>This usually means the upstream batch feed did not deliver a new review CSV.</p>"
         "</body></html>"

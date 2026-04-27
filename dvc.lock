@@ -1,24 +1,20 @@
 schema: '2.0'
 stages:
   ingest:
-    cmd: python -m ml.data_ingestion.ingest --config configs/data_config.json
+    cmd: python -m ml.data_ingestion.ingest
     deps:
-    - path: configs/data_config.json
-      hash: md5
-      md5: 66b1d43085e2067e2f7b5854a8775b14
-      size: 413
     - path: ml/common.py
       hash: md5
-      md5: a0ba0b09fffa2019e10a10cf1e14aa87
-      size: 2960
+      md5: ecde18085a03c2b986b288573f405a22
+      size: 4182
     - path: ml/data_ingestion/ingest.py
       hash: md5
-      md5: 0609314b2debc005befb5f7b8bc416ab
-      size: 11447
+      md5: 7a4f18d0c220566f50a37df6c8f7b034
+      size: 11084
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     params:
       params.yaml:
         data.allowed_ratings:
@@ -38,35 +34,31 @@ stages:
     outs:
     - path: data/raw/reviews.csv
       hash: md5
-      md5: b8dec822b7176f4ddd7f398fb60d5205
+      md5: edb29b9a7e3db2db654fc0da497e00e5
       size: 3856410
     - path: reports/ingestion_report.json
       hash: md5
-      md5: 0e299816f72c1132035b1bc559ab626d
+      md5: 517ac268960dd4ea4e8739409e43c015
       size: 822
   validate:
-    cmd: python -m ml.validation.validate_data --config configs/data_config.json
+    cmd: python -m ml.validation.validate_data
     deps:
-    - path: configs/data_config.json
-      hash: md5
-      md5: 66b1d43085e2067e2f7b5854a8775b14
-      size: 413
     - path: data/raw/reviews.csv
       hash: md5
-      md5: b8dec822b7176f4ddd7f398fb60d5205
+      md5: edb29b9a7e3db2db654fc0da497e00e5
       size: 3856410
     - path: ml/common.py
       hash: md5
-      md5: a0ba0b09fffa2019e10a10cf1e14aa87
-      size: 2960
+      md5: ecde18085a03c2b986b288573f405a22
+      size: 4182
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     - path: ml/validation/validate_data.py
       hash: md5
-      md5: 2ce93eb5affd5c6fb087be5ed87a87d6
-      size: 5835
+      md5: f9f86974311e421154670aa884a6d479
+      size: 5554
     params:
       params.yaml:
         data.max_text_length: 3000
@@ -74,31 +66,27 @@ stages:
     outs:
     - path: reports/data_validation.json
       hash: md5
-      md5: 0d25f29399f71b0e1df5feb885e0a9de
-      size: 934
+      md5: 1247009ec98e2df4ab30f7ee7f990124
+      size: 889
   preprocess:
-    cmd: python -m ml.preprocessing.preprocess --config configs/data_config.json
+    cmd: python -m ml.preprocessing.preprocess
     deps:
-    - path: configs/data_config.json
-      hash: md5
-      md5: 66b1d43085e2067e2f7b5854a8775b14
-      size: 413
     - path: data/raw/reviews.csv
       hash: md5
-      md5: b8dec822b7176f4ddd7f398fb60d5205
+      md5: edb29b9a7e3db2db654fc0da497e00e5
       size: 3856410
     - path: ml/common.py
       hash: md5
-      md5: a0ba0b09fffa2019e10a10cf1e14aa87
-      size: 2960
+      md5: ecde18085a03c2b986b288573f405a22
+      size: 4182
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     - path: ml/preprocessing/preprocess.py
       hash: md5
-      md5: 12de35b8a6c2a3ec6124b412b0636b11
-      size: 6515
+      md5: 9ba9d5c7428c3101714719a8caebc755
+      size: 6431
     params:
       params.yaml:
         data.max_text_length: 3000
@@ -109,19 +97,19 @@ stages:
     outs:
     - path: data/interim/rejected_reviews.csv
       hash: md5
-      md5: 580fa0a007ab5814712b782513ca47c3
+      md5: 93027ccfe1a79152017555fc9153a5cd
       size: 2030
     - path: data/processed/test.csv
       hash: md5
-      md5: a051327c07a6ec84ff61812695dee7f0
+      md5: 6e7414cf749a449a55e42f9dbaf18825
       size: 589691
     - path: data/processed/train.csv
       hash: md5
-      md5: 463e0291392b41b2417ea9a9303e783e
+      md5: 1fff20b5153339da209e040bf1341c57
       size: 2682430
     - path: data/processed/validation.csv
       hash: md5
-      md5: 238bf8424d72c5e8eb4df22eaf756b7d
+      md5: cc95a8b4735c185dfb6f04a578d7bc32
       size: 582736
     - path: reports/preprocessing_report.json
       hash: md5
@@ -133,16 +121,16 @@ stages:
     deps:
     - path: data/processed/train_augmented.csv
       hash: md5
-      md5: 463e0291392b41b2417ea9a9303e783e
+      md5: 1fff20b5153339da209e040bf1341c57
       size: 2682430
     - path: ml/features/compute_baseline.py
       hash: md5
-      md5: 0d3f353fee68e54a22302ec5c3382491
-      size: 4026
+      md5: 0fdf0ae5b0c04020bf0731165d4be3c0
+      size: 4129
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     outs:
     - path: data/baselines/feature_baseline.json
       hash: md5
@@ -157,32 +145,32 @@ stages:
     deps:
     - path: data/processed/test.csv
       hash: md5
-      md5: a051327c07a6ec84ff61812695dee7f0
+      md5: 6e7414cf749a449a55e42f9dbaf18825
       size: 589691
     - path: data/processed/train_augmented.csv
       hash: md5
-      md5: 463e0291392b41b2417ea9a9303e783e
+      md5: 1fff20b5153339da209e040bf1341c57
       size: 2682430
     - path: data/processed/validation.csv
       hash: md5
-      md5: 238bf8424d72c5e8eb4df22eaf756b7d
+      md5: cc95a8b4735c185dfb6f04a578d7bc32
       size: 582736
     - path: ml/common.py
       hash: md5
-      md5: a0ba0b09fffa2019e10a10cf1e14aa87
-      size: 2960
+      md5: ecde18085a03c2b986b288573f405a22
+      size: 4182
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     - path: ml/serving/pyfunc_model.py
       hash: md5
       md5: 2497edfcb8342488b55294c4650ee72d
       size: 3639
     - path: ml/training/train.py
       hash: md5
-      md5: e8d622a3c73fbc364ac41657710148be
-      size: 31636
+      md5: 462bbc46a60793a6096199515007e463
+      size: 31743
     - path: reports/feedback_merge_report.json
       hash: md5
       md5: 44c77fa7ffc3b67567ace16eeff13906
@@ -275,59 +263,59 @@ stages:
       size: 5516
     - path: models/mlflow_model
       hash: md5
-      md5: 7141ef3f5172f160c4bd1be837bd16f6.dir
-      size: 5406892
+      md5: 31f3488a6a0387dec52d1b5fc9e31257.dir
+      size: 5407626
       nfiles: 39
     - path: models/model_metadata.json
       hash: md5
-      md5: d7d915e9245e77b22384791580e21f13
-      size: 1118
+      md5: 5ef143314ca7784b918615ef821d1f83
+      size: 1116
     - path: models/sentiment_model.joblib
       hash: md5
-      md5: 2b17a3857f5288c13bbf1ba376fa3a77
+      md5: 3d460da4ab08d48404dec7d7d9f346a6
       size: 5261988
     - path: reports/model_comparison.json
       hash: md5
-      md5: 0381ae5c126b8f52159fea0998842b64
-      size: 21849
+      md5: 1ba3df58f6583a00012566c303876ff8
+      size: 21850
     - path: reports/model_comparison.md
       hash: md5
-      md5: 735ca275c3626a5f509f96ca192139be
+      md5: 227cebe3b260bdb2f1ffbfe3f80bdeb3
       size: 956
     - path: reports/model_comparison_plot.csv
       hash: md5
-      md5: 87882e736b8098a4a04f958687de3a04
-      size: 678
+      md5: 432ca6c27bb5b9ed9b8715454d62fb57
+      size: 679
     - path: reports/model_optimization_report.json
       hash: md5
-      md5: db58456aa8ed7e584d4e182a966cc78e
-      size: 1818
+      md5: 74205b42695bb113ce8b436d818bd68f
+      size: 1821
     - path: reports/training_metrics.json
       hash: md5
-      md5: fe51bc83b6b73aea580b7776e8d63f4f
-      size: 33308
+      md5: 98f173f1a2b6b3056b29ddcc25142c67
+      size: 33306
   evaluate:
     cmd: python -m ml.evaluation.evaluate
     deps:
     - path: data/processed/test.csv
       hash: md5
-      md5: a051327c07a6ec84ff61812695dee7f0
+      md5: 6e7414cf749a449a55e42f9dbaf18825
       size: 589691
     - path: ml/common.py
       hash: md5
-      md5: a0ba0b09fffa2019e10a10cf1e14aa87
-      size: 2960
+      md5: ecde18085a03c2b986b288573f405a22
+      size: 4182
     - path: ml/evaluation/evaluate.py
       hash: md5
-      md5: 4b188f5a348042604cd4abf7c833e422
-      size: 3869
+      md5: 69dba7c48499fe17c39a16c68514cccb
+      size: 3922
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     - path: models/sentiment_model.joblib
       hash: md5
-      md5: 2b17a3857f5288c13bbf1ba376fa3a77
+      md5: 3d460da4ab08d48404dec7d7d9f346a6
       size: 5261988
     params:
       params.yaml:
@@ -340,11 +328,11 @@ stages:
       size: 240
     - path: reports/evaluation.json
       hash: md5
-      md5: ec49b4594a92a35b7da91d25b1346976
+      md5: 5063b6dfc4a3c2af2c953b03e28c55a7
       size: 1853
     - path: reports/final_metrics.json
       hash: md5
-      md5: 738b8b7c22c0d0e623a7169684c0bb5e
+      md5: 62096f2892d27a41a7450fd2e1b273e9
       size: 282
   drift:
     cmd: python -m ml.monitoring.drift
@@ -355,19 +343,19 @@ stages:
       size: 5595
     - path: data/processed/test.csv
       hash: md5
-      md5: a051327c07a6ec84ff61812695dee7f0
+      md5: 6e7414cf749a449a55e42f9dbaf18825
       size: 589691
     - path: ml/monitoring/drift.py
       hash: md5
-      md5: d01b92df642242f647c1681fc9d07402
-      size: 4740
+      md5: b0d54a47a7a45fee68a59f1321557bc1
+      size: 4754
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     - path: reports/acceptance_gate.json
       hash: md5
-      md5: 3fafb0bc4fecc7c13d7fb5f6d89c4878
+      md5: 1bd5f5b6734bd3f1dac9b7e844371bfe
       size: 233
     outs:
     - path: reports/drift_report.json
@@ -379,20 +367,20 @@ stages:
     deps:
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     - path: ml/monitoring/publish_report.py
       hash: md5
-      md5: 0ffed8c684218116eae441397f1940fd
-      size: 3354
+      md5: 7f2b45b9f189e3532f8e17af3fd9cb1b
+      size: 3383
     - path: reports/acceptance_gate.json
       hash: md5
-      md5: 3fafb0bc4fecc7c13d7fb5f6d89c4878
+      md5: 1bd5f5b6734bd3f1dac9b7e844371bfe
       size: 233
     - path: reports/data_validation.json
       hash: md5
-      md5: 0d25f29399f71b0e1df5feb885e0a9de
-      size: 934
+      md5: 1247009ec98e2df4ab30f7ee7f990124
+      size: 889
     - path: reports/drift_report.json
       hash: md5
       md5: ea663dbc50d1220c4c6afd87c1f4785b
@@ -403,7 +391,7 @@ stages:
       size: 5653
     - path: reports/evaluation.json
       hash: md5
-      md5: ec49b4594a92a35b7da91d25b1346976
+      md5: 5063b6dfc4a3c2af2c953b03e28c55a7
       size: 1853
     - path: reports/feature_baseline_report.json
       hash: md5
@@ -419,48 +407,52 @@ stages:
       size: 467
     - path: reports/ingestion_report.json
       hash: md5
-      md5: 0e299816f72c1132035b1bc559ab626d
+      md5: 517ac268960dd4ea4e8739409e43c015
       size: 822
     - path: reports/model_comparison.json
       hash: md5
-      md5: 0381ae5c126b8f52159fea0998842b64
-      size: 21849
+      md5: 1ba3df58f6583a00012566c303876ff8
+      size: 21850
     - path: reports/preprocessing_report.json
       hash: md5
       md5: 1fb3f7031e4d8743043aa2f4f2578316
       size: 1403
     - path: reports/training_metrics.json
       hash: md5
-      md5: fe51bc83b6b73aea580b7776e8d63f4f
-      size: 33308
+      md5: 98f173f1a2b6b3056b29ddcc25142c67
+      size: 33306
     outs:
     - path: reports/pipeline_performance.json
       hash: md5
-      md5: 436a7fc369ec981a37e37ba31915864f
-      size: 3127
+      md5: 39c4d9ce0e4b9932db4aa15c6f27eff6
+      size: 3125
     - path: reports/pipeline_report.json
       hash: md5
-      md5: fcc0a07cf0a658bb6023b64ab308831e
-      size: 89171
+      md5: 443aadd6fd27112b8af2d03cc130de82
+      size: 89121
   eda:
-    cmd: python -m ml.eda.analyze --config configs/data_config.json
+    cmd: python -m ml.eda.analyze
     deps:
-    - path: configs/data_config.json
-      hash: md5
-      md5: 66b1d43085e2067e2f7b5854a8775b14
-      size: 413
     - path: data/raw/reviews.csv
       hash: md5
-      md5: b8dec822b7176f4ddd7f398fb60d5205
+      md5: edb29b9a7e3db2db654fc0da497e00e5
       size: 3856410
     - path: ml/eda/analyze.py
       hash: md5
-      md5: f1fc1abab43eb76e57e2cfb99704d301
-      size: 8819
+      md5: 20dbf65e6215103eb8fd4d6eadbf3fc8
+      size: 8933
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
+    params:
+      params.yaml:
+        data.dataset_name: SetFit/amazon_reviews_multi_en
+        data.dataset_split: train
+        data.max_text_length: 3000
+        data.min_text_length: 20
+        data.source_homepage:
+          https://huggingface.co/datasets/SetFit/amazon_reviews_multi_en
     outs:
     - path: reports/eda_report.json
       hash: md5
@@ -468,8 +460,8 @@ stages:
       size: 5653
     - path: reports/eda_report.md
       hash: md5
-      md5: fc0f5686b41ec26c3256e6aa2c1c7644
-      size: 1153
+      md5: 037f4188f225db845e4352df9c765d9c
+      size: 1441
     - path: reports/figures
       hash: md5
       md5: 12a39b75b0512c25733ca4da50a20ee7.dir
@@ -480,19 +472,19 @@ stages:
     deps:
     - path: ml/common.py
       hash: md5
-      md5: a0ba0b09fffa2019e10a10cf1e14aa87
-      size: 2960
+      md5: ecde18085a03c2b986b288573f405a22
+      size: 4182
     - path: ml/evaluation/check_acceptance.py
       hash: md5
-      md5: 46c93857d7c993693f7b80d2bb96f74e
-      size: 2155
+      md5: 61b871e0c7e1dcb7eb597c2c6804dcc6
+      size: 2248
     - path: reports/evaluation.json
       hash: md5
-      md5: ec49b4594a92a35b7da91d25b1346976
+      md5: 5063b6dfc4a3c2af2c953b03e28c55a7
       size: 1853
     - path: reports/final_metrics.json
       hash: md5
-      md5: 738b8b7c22c0d0e623a7169684c0bb5e
+      md5: 62096f2892d27a41a7450fd2e1b273e9
       size: 282
     params:
       params.yaml:
@@ -501,7 +493,7 @@ stages:
     outs:
     - path: reports/acceptance_gate.json
       hash: md5
-      md5: 3fafb0bc4fecc7c13d7fb5f6d89c4878
+      md5: 1bd5f5b6734bd3f1dac9b7e844371bfe
       size: 233
   prepare_feedback:
     cmd: python -m ml.monitoring.prepare_feedback --feedback
@@ -513,20 +505,20 @@ stages:
       size: 1
     - path: ml/common.py
       hash: md5
-      md5: a0ba0b09fffa2019e10a10cf1e14aa87
-      size: 2960
+      md5: ecde18085a03c2b986b288573f405a22
+      size: 4182
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     - path: ml/monitoring/prepare_feedback.py
       hash: md5
-      md5: 9d83a07454ea09ee57a47bcec0c64dc3
-      size: 6793
+      md5: 70cfad2db2c1dd6bbab168980b429337
+      size: 6862
     - path: params.yaml
       hash: md5
-      md5: f7136ec94b231c89fa14c7b1ab428ff1
-      size: 2356
+      md5: cd545202a40741bd0ffd40d7ccb925cd
+      size: 5093
     params:
       params.yaml:
         feedback:
@@ -553,24 +545,24 @@ stages:
       size: 105
     - path: data/processed/train.csv
       hash: md5
-      md5: 463e0291392b41b2417ea9a9303e783e
+      md5: 1fff20b5153339da209e040bf1341c57
       size: 2682430
     - path: ml/common.py
       hash: md5
-      md5: a0ba0b09fffa2019e10a10cf1e14aa87
-      size: 2960
+      md5: ecde18085a03c2b986b288573f405a22
+      size: 4182
     - path: ml/monitoring/performance.py
       hash: md5
-      md5: f7d692e71db4db2daa1db276380f4537
-      size: 2255
+      md5: 012f0f4e462f68b61ce06f4e2fbcaceb
+      size: 2266
     - path: ml/preprocessing/merge_feedback.py
       hash: md5
-      md5: 501b5209fe23e48612472aad763539f6
-      size: 4259
+      md5: be72f9128e8bec025854f4c91f15641d
+      size: 4335
     outs:
     - path: data/processed/train_augmented.csv
       hash: md5
-      md5: 463e0291392b41b2417ea9a9303e783e
+      md5: 1fff20b5153339da209e040bf1341c57
       size: 2682430
     - path: reports/feedback_merge_report.json
       hash: md5

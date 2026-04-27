@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from ml.common import SENTIMENT_LABELS
+from ml.data_ingestion import ingest as ingest_module
 from ml.data_ingestion.ingest import (
     build_seed_dataset,
     canonicalize_huggingface_row,
@@ -42,7 +43,7 @@ def test_seed_dataset_rows_are_unique_after_normalization() -> None:
 def test_cached_public_reviews_are_reused_when_source_matches(monkeypatch, tmp_path) -> None:
     data_raw = tmp_path / "raw"
     data_raw.mkdir()
-    monkeypatch.setattr("ml.data_ingestion.ingest.DATA_RAW", data_raw)
+    monkeypatch.setattr(ingest_module, "path_for", lambda name: data_raw / "reviews.csv")
     pd.DataFrame(
         [
             {

@@ -76,6 +76,9 @@ def test_metrics_endpoint_exposes_prometheus_text() -> None:
         "sentiment_batch_pipeline_rows_processed",
         "sentiment_batch_pipeline_quarantined",
         "sentiment_feedback_accuracy_ratio",
+        "sentiment_feedback_observed_count",
+        "sentiment_feedback_recent_corrections",
+        "sentiment_maintenance_retraining_required",
     ]
     for metric_name in expected_metrics:
         assert metric_name in response.text

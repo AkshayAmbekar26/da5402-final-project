@@ -10,11 +10,9 @@ from typing import Any
 import pandas as pd
 
 from ml.common import (
-    DATA_INTERIM,
-    FEEDBACK,
-    REPORTS,
     SENTIMENT_LABELS,
     ensure_dirs,
+    path_for,
     read_params,
     write_json,
 )
@@ -107,12 +105,15 @@ def validate_feedback_row(row: dict[str, Any], *, min_text_length: int, max_text
 
 
 def prepare_feedback(
-    feedback_path: Path = FEEDBACK / "feedback.jsonl",
-    output_path: Path = DATA_INTERIM / "validated_feedback.csv",
-    report_path: Path = REPORTS / "feedback_preparation_report.json",
+    feedback_path: Path | None = None,
+    output_path: Path | None = None,
+    report_path: Path | None = None,
 ) -> dict[str, object]:
     """Validate user corrections and publish a deterministic retraining-ready CSV."""
-    record_performance = report_path == REPORTS / "feedback_preparation_report.json"
+    feedback_path = feedback_path or path_for("feedback_log")
+    output_path = output_path or path_for("validated_feedback")
+    report_path = report_path or path_for("feedback_preparation_report")
+    record_performance = report_path == path_for("feedback_preparation_report")
     with timed_stage("prepare_feedback_corrections", enabled=record_performance) as perf:
         ensure_dirs()
         params = read_params("feedback")
@@ -168,9 +169,9 @@ def prepare_feedback(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate feedback corrections for retraining.")
-    parser.add_argument("--feedback", type=Path, default=FEEDBACK / "feedback.jsonl")
-    parser.add_argument("--output", type=Path, default=DATA_INTERIM / "validated_feedback.csv")
-    parser.add_argument("--report", type=Path, default=REPORTS / "feedback_preparation_report.json")
+    parser.add_argument("--feedback", type=Path, default=path_for("feedback_log"))
+    parser.add_argument("--output", type=Path, default=path_for("validated_feedback"))
+    parser.add_argument("--report", type=Path, default=path_for("feedback_preparation_report"))
     args = parser.parse_args()
     report = prepare_feedback(args.feedback, args.output, args.report)
     print(json.dumps(report, indent=2, sort_keys=True))

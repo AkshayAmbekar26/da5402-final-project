@@ -5,7 +5,6 @@ conda_env: conda.yaml
 entry_points:
   main:
     parameters:
-      config_path: {type: str, default: "configs/data_config.json"}
       tracking_uri: {type: str, default: "file:./mlruns"}
       experiment_name: {type: str, default: "product-review-sentiment"}
       registered_model_name: {type: str, default: "ProductReviewSentimentModel"}
@@ -16,7 +15,6 @@ entry_points:
       acceptance_latency_ms: {type: float, default: 200.0}
     command: >
       python -m ml.project
-      --config-path {config_path}
       --tracking-uri {tracking_uri}
       --experiment-name {experiment_name}
       --registered-model-name {registered_model_name}

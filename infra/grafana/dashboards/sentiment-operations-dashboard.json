@@ -19,26 +19,64 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "icon": "external link",
+      "targetBlank": true,
+      "title": "FastAPI Docs",
+      "type": "link",
+      "url": "http://localhost:8000/docs"
+    },
+    {
+      "icon": "external link",
+      "targetBlank": true,
+      "title": "Prometheus",
+      "type": "link",
+      "url": "http://localhost:9091"
+    },
+    {
+      "icon": "external link",
+      "targetBlank": true,
+      "title": "Airflow",
+      "type": "link",
+      "url": "http://localhost:8080"
+    },
+    {
+      "icon": "external link",
+      "targetBlank": true,
+      "title": "Alertmanager",
+      "type": "link",
+      "url": "http://localhost:19093"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
       "id": 1,
+      "type": "row",
+      "title": "Live Service SLOs",
+      "collapsed": false,
       "panels": [],
-      "title": "Executive SLO Overview",
-      "type": "row"
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
     },
     {
+      "id": 2,
+      "type": "stat",
+      "title": "API Availability",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 4
       },
       "fieldConfig": {
         "defaults": {
@@ -49,26 +87,31 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
               },
               {
-                "color": "red",
+                "color": "green",
                 "value": 1
               }
             ]
           },
-          "unit": "bool"
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Down"
+                },
+                "1": {
+                  "text": "Up"
+                }
+              }
+            }
+          ]
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 1
-      },
-      "id": 2,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -86,35 +129,47 @@
       "targets": [
         {
           "expr": "up{job=\"sentiment-api\"}",
-          "legendFormat": "API up",
-          "refId": "A"
+          "refId": "A",
+          "instant": true
         }
-      ],
-      "title": "API Availability",
-      "type": "stat"
+      ]
     },
     {
+      "id": 3,
+      "type": "stat",
+      "title": "Request Rate",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
       },
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
       "fieldConfig": {
         "defaults": {
-          "decimals": 2,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
           "unit": "reqps"
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 1
-      },
-      "id": 3,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
@@ -129,23 +184,29 @@
       "targets": [
         {
           "expr": "sentiment:api_requests_per_second:1m",
-          "legendFormat": "requests/s",
           "refId": "A"
         }
-      ],
-      "title": "Request Rate",
-      "type": "stat"
+      ]
     },
     {
+      "id": 4,
+      "type": "bargauge",
+      "title": "5xx Error Ratio",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
       },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
-          "decimals": 2,
-          "max": 1,
-          "min": 0,
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -163,21 +224,14 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "min": 0,
+          "max": 0.1
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 1
-      },
-      "id": 4,
       "options": {
-        "displayMode": "lcd",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
+        "displayMode": "gradient",
         "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
@@ -192,21 +246,84 @@
       "targets": [
         {
           "expr": "sentiment:api_error_ratio:5m",
-          "legendFormat": "5xx error ratio",
+          "legendFormat": "5xx ratio",
           "refId": "A"
         }
-      ],
-      "title": "5xx Error Ratio",
-      "type": "bargauge"
+      ]
     },
     {
+      "id": 5,
+      "type": "stat",
+      "title": "Invalid Review Rate",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
       },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
       "fieldConfig": {
         "defaults": {
-          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sentiment:invalid_reviews_per_second:5m",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "bargauge",
+      "title": "P95 Inference Latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -224,21 +341,14 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "s",
+          "min": 0,
+          "max": 0.4
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 1
-      },
-      "id": 5,
       "options": {
         "displayMode": "gradient",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
         "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
@@ -253,30 +363,90 @@
       "targets": [
         {
           "expr": "sentiment:inference_latency_p95_seconds:5m",
-          "legendFormat": "p95 inference",
+          "legendFormat": "p95",
           "refId": "A"
         }
-      ],
-      "title": "P95 Inference Latency",
-      "type": "bargauge"
+      ]
     },
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 5
-      },
-      "id": 6,
-      "panels": [],
-      "title": "Application Throughput and Quality",
-      "type": "row"
-    },
-    {
+      "id": 7,
+      "type": "stat",
+      "title": "Active Requests",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(sentiment_active_requests)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "Traffic and Latency Trends",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Request Outcome by Status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -284,40 +454,38 @@
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 6
-      },
-      "id": 7,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
         {
           "expr": "sentiment:api_requests_per_second_by_status:1m",
-          "legendFormat": "status {{status_code}}",
+          "legendFormat": "{{status_code}}",
           "refId": "A"
         }
-      ],
-      "title": "Request Outcome by Status",
-      "type": "timeseries"
+      ]
     },
     {
+      "id": 10,
+      "type": "timeseries",
+      "title": "API Throughput by Endpoint",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 6,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -325,24 +493,54 @@
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 6
-      },
-      "id": 8,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(sentiment_api_requests_total[1m])) by (endpoint)",
+          "legendFormat": "{{endpoint}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Prediction Distribution Rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 6,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "targets": [
@@ -351,14 +549,21 @@
           "legendFormat": "{{sentiment}}",
           "refId": "A"
         }
-      ],
-      "title": "Prediction Distribution Rate",
-      "type": "timeseries"
+      ]
     },
     {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Inference Latency Percentiles",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -366,24 +571,15 @@
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 13
-      },
-      "id": 9,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -397,14 +593,21 @@
           "legendFormat": "p95",
           "refId": "B"
         }
-      ],
-      "title": "Inference Latency Percentiles",
-      "type": "timeseries"
+      ]
     },
     {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Request Latency by Endpoint",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 14,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -412,24 +615,54 @@
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 13
-      },
-      "id": 10,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sentiment:request_latency_p95_seconds:5m",
+          "legendFormat": "{{endpoint}} {{method}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "P95 Latency by Inference Stage",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 14,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "targets": [
@@ -438,68 +671,34 @@
           "legendFormat": "{{stage}}",
           "refId": "A"
         }
-      ],
-      "title": "P95 Latency by Inference Stage",
-      "type": "timeseries"
+      ]
     },
     {
+      "id": 15,
+      "type": "row",
+      "title": "Resource Correlation and Input Quality",
       "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 20
-      },
-      "id": 11,
       "panels": [],
-      "title": "Runtime and Infrastructure Correlation",
-      "type": "row"
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      }
     },
     {
+      "id": 16,
+      "type": "timeseries",
+      "title": "API vs Host CPU",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 8,
         "x": 0,
-        "y": 21
-      },
-      "id": 12,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "expr": "sum(sentiment_active_requests)",
-          "legendFormat": "active requests",
-          "refId": "A"
-        }
-      ],
-      "title": "Active Requests",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
+        "y": 23,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -507,45 +706,43 @@
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 8,
-        "y": 21
-      },
-      "id": 13,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
         {
           "expr": "sentiment_process_cpu_percent",
-          "legendFormat": "API process CPU",
+          "legendFormat": "API CPU",
           "refId": "A"
         },
         {
           "expr": "node:cpu_usage_percent:2m",
-          "legendFormat": "host CPU",
+          "legendFormat": "Host CPU",
           "refId": "B"
         }
-      ],
-      "title": "API vs Host CPU",
-      "type": "timeseries"
+      ]
     },
     {
+      "id": 17,
+      "type": "timeseries",
+      "title": "API Process Memory",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 23,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -553,24 +750,15 @@
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 21
-      },
-      "id": 14,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -579,27 +767,21 @@
           "legendFormat": "API RSS",
           "refId": "A"
         }
-      ],
-      "title": "API Process Memory",
-      "type": "timeseries"
+      ]
     },
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 28
-      },
-      "id": 15,
-      "panels": [],
-      "title": "Input Quality, Model State, and Alert Operations",
-      "type": "row"
-    },
-    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Invalid Review Rate by Reason",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 23,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -607,24 +789,15 @@
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 0,
-        "y": 29
-      },
-      "id": 16,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -633,39 +806,169 @@
           "legendFormat": "{{reason}}",
           "refId": "A"
         }
-      ],
-      "title": "Invalid Review Rate by Reason",
-      "type": "timeseries"
+      ]
     },
     {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Review Text Length and Submission Rate",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
       },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 8,
+        "h": 8
+      },
       "fieldConfig": {
-        "defaults": {
-          "unit": "bool"
-        },
+        "defaults": {},
         "overrides": []
       },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 8,
-        "y": 29
-      },
-      "id": 17,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sentiment_review_text_length_chars_sum / clamp_min(sentiment_review_text_length_chars_count, 1)",
+          "legendFormat": "avg length",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(sentiment_review_text_length_chars_count[5m])",
+          "legendFormat": "submissions/s",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Host Memory and Disk Pressure",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 31,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "node:memory_usage_percent",
+          "legendFormat": "host memory",
+          "refId": "A"
+        },
+        {
+          "expr": "max(node:disk_usage_percent)",
+          "legendFormat": "host disk",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "table",
+      "title": "Infrastructure Health",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 31,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "expr": "up{job=~\"prometheus|alertmanager|node-exporter|sentiment-api\"}",
+          "legendFormat": "{{job}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "transformations": []
+    },
+    {
+      "id": 22,
+      "type": "row",
+      "title": "Model State, Retraining Signals, and Alerts",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Model and Drift State",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "targets": [
@@ -680,81 +983,213 @@
           "refId": "B"
         },
         {
+          "expr": "sentiment_model_accepted",
+          "legendFormat": "accepted",
+          "refId": "C"
+        },
+        {
           "expr": "sentiment_data_drift_detected",
           "legendFormat": "drift detected",
-          "refId": "C"
+          "refId": "D"
         }
-      ],
-      "title": "Model and Drift State",
-      "type": "timeseries"
+      ]
     },
     {
+      "id": 24,
+      "type": "timeseries",
+      "title": "Retraining Signals",
       "datasource": {
         "type": "prometheus",
         "uid": "Prometheus"
       },
+      "gridPos": {
+        "x": 8,
+        "y": 40,
+        "w": 8,
+        "h": 8
+      },
       "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          }
-        },
+        "defaults": {},
         "overrides": []
       },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 29
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
-      "id": 18,
+      "targets": [
+        {
+          "expr": "sentiment_maintenance_retraining_required",
+          "legendFormat": "retraining required",
+          "refId": "A"
+        },
+        {
+          "expr": "sentiment_feedback_recent_corrections",
+          "legendFormat": "recent corrections",
+          "refId": "B"
+        },
+        {
+          "expr": "sentiment_feedback_observed_count",
+          "legendFormat": "feedback count",
+          "refId": "C"
+        },
+        {
+          "expr": "sentiment_feedback_accuracy_ratio",
+          "legendFormat": "feedback accuracy",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "table",
+      "title": "Current Firing Alerts",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 40,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "options": {
         "cellHeight": "sm",
+        "showHeader": true,
         "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
           "show": false
-        },
-        "showHeader": true
+        }
       },
       "targets": [
         {
           "expr": "ALERTS{alertstate=\"firing\", service=\"sentiment-analyzer\"}",
-          "format": "table",
-          "instant": true,
           "legendFormat": "{{alertname}}",
-          "refId": "A"
+          "refId": "A",
+          "instant": true
         }
       ],
-      "title": "Current Firing Alerts",
-      "type": "table"
+      "transformations": []
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "Alert Notifications",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(alertmanager_notifications_total[5m])) by (receiver, integration)",
+          "legendFormat": "{{receiver}}/{{integration}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(sentiment_alert_notifications_total[5m])) by (severity, status)",
+          "legendFormat": "{{severity}} {{status}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Batch Failure and Quarantine Signals",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sentiment_batch_pipeline_failed_chunks",
+          "legendFormat": "failed chunks",
+          "refId": "A"
+        },
+        {
+          "expr": "sentiment_batch_pipeline_quarantined",
+          "legendFormat": "quarantined",
+          "refId": "B"
+        },
+        {
+          "expr": "sentiment_batch_pipeline_rows_processed",
+          "legendFormat": "rows processed",
+          "refId": "C"
+        }
+      ]
     }
   ],
   "refresh": "10s",
   "schemaVersion": 39,
   "tags": [
     "mlops",
+    "operations",
     "sentiment",
-    "operations"
+    "slo"
   ],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "browser",
-  "title": "Sentiment Operations - SLO and Alerts",
+  "timezone": "",
+  "title": "Sentiment Operations and SLOs",
   "uid": "sentiment-ops",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

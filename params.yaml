@@ -1,3 +1,63 @@
+paths:
+  directories:
+    configs: configs
+    data_raw: data/raw
+    data_interim: data/interim
+    data_processed: data/processed
+    data_baselines: data/baselines
+    data_incoming: data/incoming
+    data_archive: data/archive
+    data_quarantine: data/quarantine
+    data_batch_interim: data/interim/batches
+    data_ops: data/ops
+    models: models
+    reports: reports
+    report_figures: reports/figures
+    report_performance: reports/performance
+    feedback: feedback
+  artifacts:
+    raw_reviews: data/raw/reviews.csv
+    rejected_reviews: data/interim/rejected_reviews.csv
+    validated_feedback: data/interim/validated_feedback.csv
+    train: data/processed/train.csv
+    validation: data/processed/validation.csv
+    test: data/processed/test.csv
+    train_augmented: data/processed/train_augmented.csv
+    feature_baseline: data/baselines/feature_baseline.json
+    sentiment_model: models/sentiment_model.joblib
+    model_metadata: models/model_metadata.json
+    feature_importance: models/feature_importance.json
+    mlflow_model_dir: models/mlflow_model
+    feedback_log: feedback/feedback.jsonl
+    retraining_feedback: feedback/retraining_feedback.jsonl
+    ops_db: data/ops/sentiment_pipeline_ops.db
+    ingestion_report: reports/ingestion_report.json
+    data_validation_report: reports/data_validation.json
+    eda_report: reports/eda_report.json
+    eda_markdown: reports/eda_report.md
+    class_distribution_figure: reports/figures/class_distribution.png
+    rating_distribution_figure: reports/figures/rating_distribution.png
+    text_length_distribution_figure: reports/figures/text_length_distribution.png
+    top_tokens_by_sentiment_figure: reports/figures/top_tokens_by_sentiment.png
+    preprocessing_report: reports/preprocessing_report.json
+    feedback_preparation_report: reports/feedback_preparation_report.json
+    feedback_merge_report: reports/feedback_merge_report.json
+    feature_baseline_report: reports/feature_baseline_report.json
+    training_metrics: reports/training_metrics.json
+    model_comparison: reports/model_comparison.json
+    model_comparison_markdown: reports/model_comparison.md
+    model_comparison_plot: reports/model_comparison_plot.csv
+    model_optimization_report: reports/model_optimization_report.json
+    evaluation_report: reports/evaluation.json
+    final_metrics: reports/final_metrics.json
+    confusion_matrix: reports/confusion_matrix.csv
+    acceptance_gate: reports/acceptance_gate.json
+    drift_report: reports/drift_report.json
+    maintenance_report: reports/maintenance_report.json
+    pipeline_report: reports/pipeline_report.json
+    pipeline_performance: reports/pipeline_performance.json
+    batch_pipeline_report: reports/batch_pipeline_report.json
+
 data:
   dataset_name: SetFit/amazon_reviews_multi_en
   dataset_split: train

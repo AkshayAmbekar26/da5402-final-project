@@ -11,10 +11,10 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 from airflow import DAG
 
-PROJECT_DIR = Path(os.getenv("PROJECT_DIR", "/opt/airflow/project"))
+PROJECT_DIR = Path(os.getenv("PROJECT_DIR", Path.cwd()))
 sys.path.insert(0, str(PROJECT_DIR))
 
-from ml.common import FEEDBACK, REPORTS  # noqa: E402
+from ml.common import path_for  # noqa: E402
 from ml.monitoring.maintenance import evaluate_retraining_policy  # noqa: E402
 
 PYTHON = os.getenv("PYTHON", "python")
@@ -27,9 +27,9 @@ def _schedule_interval(name: str, default: str) -> str | None:
 
 def should_trigger_retraining() -> bool:
     report = evaluate_retraining_policy(
-        drift_report_path=REPORTS / "drift_report.json",
-        feedback_path=FEEDBACK / "feedback.jsonl",
-        output_path=REPORTS / "maintenance_report.json",
+        drift_report_path=path_for("drift_report"),
+        feedback_path=path_for("feedback_log"),
+        output_path=path_for("maintenance_report"),
         drift_threshold=float(os.getenv("SENTIMENT_RETRAIN_DRIFT_THRESHOLD", "0.25")),
         min_feedback_count=int(os.getenv("SENTIMENT_RETRAIN_MIN_FEEDBACK_COUNT", "10")),
         min_feedback_accuracy=float(os.getenv("SENTIMENT_RETRAIN_MIN_FEEDBACK_ACCURACY", "0.8")),

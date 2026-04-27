@@ -4,16 +4,18 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from ml.common import REPORTS, read_json, read_params, write_json
+from ml.common import path_for, read_json, read_params, write_json
 
 
 def check_acceptance(
-    evaluation_path: Path = REPORTS / "evaluation.json",
-    output_path: Path = REPORTS / "acceptance_gate.json",
+    evaluation_path: Path | None = None,
+    output_path: Path | None = None,
     *,
     fail_on_reject: bool = True,
 ) -> dict[str, Any]:
     """Fail the lifecycle when the selected model misses quality or latency gates."""
+    evaluation_path = evaluation_path or path_for("evaluation_report")
+    output_path = output_path or path_for("acceptance_gate")
     evaluation = read_json(evaluation_path)
     training_params = read_params("training")
     min_macro_f1 = float(training_params.get("acceptance_test_macro_f1", 0.75))
@@ -44,8 +46,8 @@ def check_acceptance(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fail the pipeline if the selected model is not accepted.")
-    parser.add_argument("--evaluation", type=Path, default=REPORTS / "evaluation.json")
-    parser.add_argument("--output", type=Path, default=REPORTS / "acceptance_gate.json")
+    parser.add_argument("--evaluation", type=Path, default=path_for("evaluation_report"))
+    parser.add_argument("--output", type=Path, default=path_for("acceptance_gate"))
     args = parser.parse_args()
     check_acceptance(args.evaluation, args.output)
 

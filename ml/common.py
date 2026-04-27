@@ -9,37 +9,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA_RAW = ROOT / "data" / "raw"
-DATA_INTERIM = ROOT / "data" / "interim"
-DATA_PROCESSED = ROOT / "data" / "processed"
-DATA_BASELINES = ROOT / "data" / "baselines"
-DATA_INCOMING = ROOT / "data" / "incoming"
-DATA_ARCHIVE = ROOT / "data" / "archive"
-DATA_QUARANTINE = ROOT / "data" / "quarantine"
-DATA_OPS = ROOT / "data" / "ops"
-MODELS = ROOT / "models"
-REPORTS = ROOT / "reports"
-FEEDBACK = ROOT / "feedback"
-
 SENTIMENT_LABELS = ["negative", "neutral", "positive"]
 RANDOM_SEED = 42
-
-
-def ensure_dirs() -> None:
-    for directory in [
-        DATA_RAW,
-        DATA_INTERIM,
-        DATA_PROCESSED,
-        DATA_BASELINES,
-        DATA_INCOMING,
-        DATA_ARCHIVE,
-        DATA_QUARANTINE,
-        DATA_OPS,
-        MODELS,
-        REPORTS,
-        FEEDBACK,
-    ]:
-        directory.mkdir(parents=True, exist_ok=True)
 
 
 def utc_now() -> str:
@@ -68,6 +39,61 @@ def read_params(section: str | None = None) -> dict[str, Any]:
         return dict(payload)
     section_payload = payload.get(section, {})
     return dict(section_payload) if isinstance(section_payload, dict) else {}
+
+
+def resolve_project_path(value: str | Path) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else ROOT / path
+
+
+def _path_section(kind: str) -> dict[str, str]:
+    paths = read_params("paths")
+    section = paths.get(kind, {})
+    return dict(section) if isinstance(section, dict) else {}
+
+
+def dir_for(name: str) -> Path:
+    directories = _path_section("directories")
+    if name not in directories:
+        raise KeyError(f"paths.directories.{name} is not configured in params.yaml")
+    return resolve_project_path(directories[name])
+
+
+def path_for(name: str) -> Path:
+    artifacts = _path_section("artifacts")
+    if name not in artifacts:
+        raise KeyError(f"paths.artifacts.{name} is not configured in params.yaml")
+    return resolve_project_path(artifacts[name])
+
+
+def configured_artifact_paths() -> dict[str, Path]:
+    return {name: resolve_project_path(value) for name, value in _path_section("artifacts").items()}
+
+
+def ensure_dirs() -> None:
+    directories = _path_section("directories")
+    for configured_path in directories.values():
+        resolve_project_path(configured_path).mkdir(parents=True, exist_ok=True)
+    for configured_path in _path_section("artifacts").values():
+        resolve_project_path(configured_path).parent.mkdir(parents=True, exist_ok=True)
+
+
+# Backward-compatible directory handles; new code should prefer dir_for/path_for.
+CONFIGS = dir_for("configs")
+DATA_RAW = dir_for("data_raw")
+DATA_INTERIM = dir_for("data_interim")
+DATA_PROCESSED = dir_for("data_processed")
+DATA_BASELINES = dir_for("data_baselines")
+DATA_INCOMING = dir_for("data_incoming")
+DATA_ARCHIVE = dir_for("data_archive")
+DATA_QUARANTINE = dir_for("data_quarantine")
+DATA_BATCH_INTERIM = dir_for("data_batch_interim")
+DATA_OPS = dir_for("data_ops")
+MODELS = dir_for("models")
+REPORTS = dir_for("reports")
+REPORT_FIGURES = dir_for("report_figures")
+REPORT_PERFORMANCE = dir_for("report_performance")
+FEEDBACK = dir_for("feedback")
 
 
 def rating_to_sentiment(rating: int) -> str:

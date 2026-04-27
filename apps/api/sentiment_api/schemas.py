@@ -48,4 +48,3 @@ class ReadyResponse(BaseModel):
     model_loaded: bool
     fallback_mode: bool
     model_path: str
-

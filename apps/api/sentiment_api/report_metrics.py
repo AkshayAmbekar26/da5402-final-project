@@ -17,6 +17,15 @@ from apps.api.sentiment_api.metrics import (
     DRIFT_DETECTED,
     DRIFT_SCORE,
     FEEDBACK_ACCURACY_RATIO,
+    FEEDBACK_CORRECTION_COUNT_GAUGE,
+    FEEDBACK_MIN_ACCURACY_TARGET,
+    FEEDBACK_MIN_CORRECTIONS_TARGET,
+    FEEDBACK_MIN_COUNT_TARGET,
+    FEEDBACK_OBSERVED_COUNT,
+    FEEDBACK_RECENT_CORRECTIONS,
+    MAINTENANCE_COOLDOWN_ACTIVE,
+    MAINTENANCE_REASON_ACTIVE,
+    MAINTENANCE_RETRAINING_REQUIRED,
     MODEL_ACCEPTED,
     MODEL_ACCEPTED_CANDIDATE_COUNT,
     MODEL_CANDIDATE_COUNT,
@@ -28,23 +37,24 @@ from apps.api.sentiment_api.metrics import (
     PIPELINE_STAGE_DURATION_SECONDS,
     PIPELINE_STAGE_THROUGHPUT,
 )
+from ml.common import path_for
 
 REPORT_MAP = {
-    "ingestion": Path("reports/ingestion_report.json"),
-    "validation": Path("reports/data_validation.json"),
-    "eda": Path("reports/eda_report.json"),
-    "preprocessing": Path("reports/preprocessing_report.json"),
-    "feedback_preparation": Path("reports/feedback_preparation_report.json"),
-    "feedback_merge": Path("reports/feedback_merge_report.json"),
-    "model_comparison": Path("reports/model_comparison.json"),
-    "model_optimization": Path("reports/model_optimization_report.json"),
-    "evaluation": Path("reports/evaluation.json"),
-    "acceptance_gate": Path("reports/acceptance_gate.json"),
-    "drift": Path("reports/drift_report.json"),
-    "maintenance": Path("reports/maintenance_report.json"),
-    "pipeline": Path("reports/pipeline_report.json"),
-    "pipeline_performance": Path("reports/pipeline_performance.json"),
-    "batch_pipeline": Path("reports/batch_pipeline_report.json"),
+    "ingestion": path_for("ingestion_report"),
+    "validation": path_for("data_validation_report"),
+    "eda": path_for("eda_report"),
+    "preprocessing": path_for("preprocessing_report"),
+    "feedback_preparation": path_for("feedback_preparation_report"),
+    "feedback_merge": path_for("feedback_merge_report"),
+    "model_comparison": path_for("model_comparison"),
+    "model_optimization": path_for("model_optimization_report"),
+    "evaluation": path_for("evaluation_report"),
+    "acceptance_gate": path_for("acceptance_gate"),
+    "drift": path_for("drift_report"),
+    "maintenance": path_for("maintenance_report"),
+    "pipeline": path_for("pipeline_report"),
+    "pipeline_performance": path_for("pipeline_performance"),
+    "batch_pipeline": path_for("batch_pipeline_report"),
 }
 
 
@@ -86,6 +96,7 @@ def refresh_report_metrics(model_info: dict[str, Any]) -> dict[str, Any]:
     comparison = reports["model_comparison"]
     evaluation = reports["evaluation"]
     drift = reports["drift"]
+    maintenance = reports["maintenance"]
     pipeline = reports["pipeline"]
     performance = reports["pipeline_performance"]
     batch_pipeline = reports["batch_pipeline"]
@@ -138,7 +149,22 @@ def refresh_report_metrics(model_info: dict[str, Any]) -> dict[str, Any]:
                 float(stage.get("throughput_rows_per_second", 0.0) or 0.0)
             )
 
-    FEEDBACK_ACCURACY_RATIO.set(feedback_accuracy_ratio())
+    feedback = maintenance.get("feedback", {}) or {}
+    FEEDBACK_ACCURACY_RATIO.set(float(feedback.get("accuracy", feedback_accuracy_ratio()) or 0.0))
+    FEEDBACK_OBSERVED_COUNT.set(float(feedback.get("count", 0) or 0))
+    FEEDBACK_CORRECTION_COUNT_GAUGE.set(float(feedback.get("corrections", 0) or 0))
+    FEEDBACK_RECENT_CORRECTIONS.set(float(feedback.get("recent_corrections", 0) or 0))
+    FEEDBACK_MIN_ACCURACY_TARGET.set(float(feedback.get("min_accuracy", 0.0) or 0.0))
+    FEEDBACK_MIN_CORRECTIONS_TARGET.set(float(feedback.get("min_corrections", 0) or 0))
+    FEEDBACK_MIN_COUNT_TARGET.set(float(feedback.get("min_count", 0) or 0))
+    MAINTENANCE_RETRAINING_REQUIRED.set(1 if maintenance.get("should_retrain", False) else 0)
+    MAINTENANCE_COOLDOWN_ACTIVE.set(1 if maintenance.get("cooldown", {}).get("active", False) else 0)
+    try:
+        MAINTENANCE_REASON_ACTIVE.clear()
+    except AttributeError:
+        pass
+    for reason in maintenance.get("reasons", []) or []:
+        MAINTENANCE_REASON_ACTIVE.labels(reason=str(reason)).set(1)
     return {
         **reports,
         "pipeline_summary": pipeline.get("summary", {}),

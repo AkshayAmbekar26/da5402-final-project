@@ -6,12 +6,9 @@ from pathlib import Path
 import pandas as pd
 
 from ml.common import (
-    DATA_RAW,
-    REPORTS,
-    ROOT,
     SENTIMENT_LABELS,
     ensure_dirs,
-    read_json,
+    path_for,
     read_params,
     write_json,
 )
@@ -102,13 +99,11 @@ def validate_dataframe(
     }
 
 
-def validate_data(
-    input_path: Path = DATA_RAW / "reviews.csv",
-    config_path: Path = ROOT / "configs" / "data_config.json",
-) -> dict[str, object]:
+def validate_data(input_path: Path | None = None) -> dict[str, object]:
     with timed_stage("validate_raw_data") as perf:
         ensure_dirs()
-        config = {**(read_json(config_path) if config_path.exists() else {}), **read_params("data")}
+        input_path = input_path or path_for("raw_reviews")
+        config = read_params("data")
         df = pd.read_csv(input_path)
         report = validate_dataframe(
             df,
@@ -117,10 +112,9 @@ def validate_data(
         )
         report["stage"] = "validate_raw_data"
         report["input_path"] = str(input_path)
-        report["config_path"] = str(config_path)
         perf["rows_processed"] = int(len(df))
         perf["extra"] = {"status": report["status"], "warning_count": len(report.get("warnings", []))}
-        write_json(REPORTS / "data_validation.json", report)
+        write_json(path_for("data_validation_report"), report)
         if report["status"] != "success":
             raise ValueError(f"Data validation failed: {report['errors']}")
         return report
@@ -128,10 +122,9 @@ def validate_data(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate raw review data.")
-    parser.add_argument("--input", type=Path, default=DATA_RAW / "reviews.csv")
-    parser.add_argument("--config", type=Path, default=ROOT / "configs" / "data_config.json")
+    parser.add_argument("--input", type=Path, default=path_for("raw_reviews"))
     args = parser.parse_args()
-    validate_data(args.input, args.config)
+    validate_data(args.input)
 
 
 if __name__ == "__main__":
