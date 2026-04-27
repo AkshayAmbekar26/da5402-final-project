@@ -7,7 +7,6 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_RETRIES=10
 
 COPY pyproject.toml constraints.txt README.md params.yaml /app/
-COPY configs /app/configs
 COPY ml /app/ml
 COPY apps /app/apps
 RUN pip install --default-timeout=300 --retries=10 --no-cache-dir --no-binary pyasn1 pyasn1==0.6.3
