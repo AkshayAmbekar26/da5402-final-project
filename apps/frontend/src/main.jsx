@@ -40,6 +40,13 @@ import './styles.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const MAX_LEN = 5000;
+const DEFAULT_TOOL_LINKS = {
+  airflow: 'http://localhost:8080',
+  mlflow: 'http://localhost:5001',
+  prometheus: 'http://localhost:9091',
+  grafana: 'http://localhost:3001',
+  alertmanager: 'http://localhost:19093',
+};
 
 const EXAMPLES = [
   { label: 'Positive', emoji: '😊', sentiment: 'positive', text: 'Excellent quality and the delivery was faster than expected. I would buy this again.' },
@@ -52,6 +59,87 @@ const SENTIMENT_MAP = {
   neutral: { label: 'Neutral', icon: Gauge, tone: 'neutral' },
   negative: { label: 'Negative', icon: XCircle, tone: 'negative' },
 };
+
+const WALKTHROUGH_SECTIONS = [
+  {
+    id: 'architecture',
+    icon: <Layers size={18} />,
+    title: 'Architecture',
+    intro: 'SentinelAI is split into independent services so the app, model lifecycle, and monitoring stack can evolve without being tightly coupled.',
+    points: [
+      'React/Vite is the user-facing frontend. It only talks to the backend through REST APIs.',
+      'FastAPI serves single-review inference, health checks, feedback capture, and metrics summary APIs.',
+      'MLflow handles experiment tracking, artifact storage, and model registry style traceability.',
+      'Airflow orchestrates the operational DAGs for training, ingestion, and maintenance workflows.',
+    ],
+    tools: ['airflow', 'mlflow'],
+  },
+  {
+    id: 'training',
+    icon: <Database size={18} />,
+    title: 'Data and Training Lifecycle',
+    intro: 'The ML pipeline starts from reproducible data preparation and ends in a selected, accepted model artifact ready for deployment.',
+    points: [
+      'Raw reviews are ingested, validated, profiled with EDA, and preprocessed with fixed splits and versioned feature logic.',
+      'Multiple candidate models are trained and compared instead of promoting a single hardcoded baseline.',
+      'Evaluation and acceptance gates check macro F1 and latency before the model is considered deployment-ready.',
+      'Feature baselines and drift references are saved so production data can be compared against training-time behavior.',
+    ],
+    tools: ['mlflow', 'airflow'],
+  },
+  {
+    id: 'experiments',
+    icon: <GitBranch size={18} />,
+    title: 'Experiments and Reproducibility',
+    intro: 'Every major training run is traceable across code, data, parameters, and artifacts so the project stays reproducible instead of ad hoc.',
+    points: [
+      'MLflow stores parameters, metrics, reports, and model artifacts for each candidate training run.',
+      'DVC tracks staged pipeline outputs, pipeline dependencies, and reproducible stage execution.',
+      'The final demo state is pinned with Git tags and DVC-tracked artifacts so it can be recreated later.',
+      'This makes it possible to answer which model was trained, with what data, and under which code state.',
+    ],
+    tools: ['mlflow'],
+  },
+  {
+    id: 'deployment',
+    icon: <Server size={18} />,
+    title: 'Deployment and Serving',
+    intro: 'The deployed system favors local reliability and environment parity over cloud complexity, which fits the course constraints well.',
+    points: [
+      'Docker Compose brings up the frontend, API, MLflow, Airflow, Prometheus, Grafana, Alertmanager, and supporting services together.',
+      'The FastAPI container loads the selected model artifact and exposes /health, /ready, /predict, and feedback endpoints.',
+      'A separate MLflow model-serving container proves the trained model can also be served through MLflow packaging conventions.',
+      'Rollback is configuration-driven because prior model versions remain available in MLflow and artifact storage.',
+    ],
+    tools: ['mlflow', 'airflow'],
+  },
+  {
+    id: 'monitoring',
+    icon: <Activity size={18} />,
+    title: 'Monitoring and Maintenance',
+    intro: 'The MLOps stack is designed to watch both application behavior and model behavior after deployment, not just during training.',
+    points: [
+      'Prometheus scrapes API metrics such as throughput, latency, error rate, prediction mix, and readiness state.',
+      'Grafana visualizes both a system overview and an operations/SLO view so live status is easy to interpret during the demo.',
+      'Alertmanager and Airflow maintenance workflows are used to surface issues such as drift, readiness failures, and operational degradation.',
+      'Feedback labels and drift scores are used as maintenance signals so retraining can be justified instead of arbitrary.',
+    ],
+    tools: ['grafana', 'prometheus', 'alertmanager', 'airflow'],
+  },
+  {
+    id: 'demo',
+    icon: <Rocket size={18} />,
+    title: 'Recommended Demo Path',
+    intro: 'A good walkthrough moves from product value to engineering discipline, so the story stays clear for both technical and non-technical evaluators.',
+    points: [
+      'Start with a live prediction on the Analyzer screen and show confidence, explanation tokens, latency, and model metadata.',
+      'Switch to the MLOps dashboard to explain pipeline stages, data quality, accepted model state, and infrastructure links.',
+      'Open MLflow for experiment history, Airflow for DAG visibility, and Grafana for live monitoring evidence.',
+      'End with feedback, drift/retraining logic, and the rollback story to show the full lifecycle beyond one-off inference.',
+    ],
+    tools: ['airflow', 'mlflow', 'grafana'],
+  },
+];
 
 /* ═══════════════════════════════════════════════════════
    PRODUCT TOUR DEFINITION
@@ -119,6 +207,7 @@ const TOUR_STEPS = [
 function App() {
   const [screen, setScreen] = useState('predict');
   const [manualOpen, setManualOpen] = useState(false);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   const [tourActive, setTourActive] = useState(() => {
     return !localStorage.getItem('sentinel-tour-done');
   });
@@ -162,6 +251,9 @@ function App() {
           <button className="topbar-btn tour-trigger" onClick={startTour} title="Product Tour">
             <Map size={16} /><span>Tour</span>
           </button>
+          <button className="topbar-btn walkthrough-trigger" onClick={() => setWalkthroughOpen(true)} title="How the system works">
+            <Workflow size={16} /><span>How It Works</span>
+          </button>
           <button className="topbar-btn" data-tour="guide-btn" onClick={() => setManualOpen(true)}>
             <FileText size={16} /><span>Guide</span>
           </button>
@@ -170,6 +262,7 @@ function App() {
 
       {screen === 'predict' ? <AnalyzerScreen /> : <OpsScreen />}
       {manualOpen && <GuidePanel onClose={() => setManualOpen(false)} />}
+      {walkthroughOpen && <WalkthroughPanel onClose={() => setWalkthroughOpen(false)} />}
       {tourActive && <ProductTour onComplete={endTour} />}
     </div>
   );
@@ -605,7 +698,7 @@ function OpsScreen() {
 
   useEffect(() => { load(); }, []);
 
-  const links = summary?.links || { airflow: 'http://localhost:8080', mlflow: 'http://localhost:5001', prometheus: 'http://localhost:9091', grafana: 'http://localhost:3001', alertmanager: 'http://localhost:19093' };
+  const links = summary?.links || DEFAULT_TOOL_LINKS;
   const metrics = summary?.evaluation?.metrics || summary?.evaluation?.test || {};
   const drift = summary?.drift || {};
   const model = summary?.model?.metadata || {};
@@ -935,6 +1028,10 @@ function GuidePanel({ onClose }) {
           <GStep icon={<Star size={20} />} title="Give feedback" desc="Select the real label to help track prediction quality." />
           <GStep icon={<Activity size={20} />} title="Check MLOps" desc="Switch tabs to see pipeline health, drift, and infrastructure links." />
         </div>
+        <a className="guide-manual-link" href="/user_manual.md" target="_blank" rel="noreferrer">
+          <FileText size={16} />
+          <span>Open full user manual</span>
+        </a>
       </aside>
     </div>
   );
@@ -944,6 +1041,100 @@ function GStep({ icon, title, desc }) {
     <div className="g-step">
       <div className="g-step-icon">{icon}</div>
       <div><strong>{title}</strong><p>{desc}</p></div>
+    </div>
+  );
+}
+
+function WalkthroughPanel({ onClose }) {
+  const [openSection, setOpenSection] = useState('architecture');
+  const toolIcons = { airflow: Workflow, mlflow: Brain, prometheus: Activity, grafana: BarChart3, alertmanager: AlertTriangle };
+  const heroStats = [
+    { label: 'Frontend', value: 'React + Vite' },
+    { label: 'API', value: 'FastAPI' },
+    { label: 'Tracking', value: 'MLflow + DVC' },
+    { label: 'Monitoring', value: 'Prometheus + Grafana' },
+  ];
+
+  function toggleSection(id) {
+    setOpenSection(current => (current === id ? '' : id));
+  }
+
+  return (
+    <div className="guide-bg" onClick={onClose}>
+      <aside className="guide-panel walkthrough-panel" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="How SentinelAI works">
+        <div className="guide-top walkthrough-top">
+          <div>
+            <span className="walkthrough-eyebrow">System Walkthrough</span>
+            <h2>How SentinelAI works end to end</h2>
+            <p className="walkthrough-intro">
+              This panel explains the product flow, the MLOps lifecycle, and why each service exists in the final project.
+            </p>
+          </div>
+          <button className="btn-icon" onClick={onClose} aria-label="Close system walkthrough"><X size={18} /></button>
+        </div>
+
+        <div className="walkthrough-hero">
+          {heroStats.map((item) => (
+            <div className="walkthrough-stat" key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+
+        <div className="system-map">
+          <div className="system-map-node">Frontend</div>
+          <div className="system-map-arrow">→</div>
+          <div className="system-map-node">FastAPI</div>
+          <div className="system-map-arrow">→</div>
+          <div className="system-map-node">Model Artifact</div>
+          <div className="system-map-break" />
+          <div className="system-map-node soft">DVC Pipeline</div>
+          <div className="system-map-arrow">→</div>
+          <div className="system-map-node soft">Airflow DAGs</div>
+          <div className="system-map-arrow">→</div>
+          <div className="system-map-node soft">Reports + Monitoring</div>
+        </div>
+
+        <div className="walkthrough-links">
+          {Object.entries(DEFAULT_TOOL_LINKS).map(([label, href]) => {
+            const Icon = toolIcons[label] || Workflow;
+            return (
+              <a key={label} href={href} target="_blank" rel="noreferrer" className="walkthrough-link">
+                <Icon size={14} />
+                <span>{titleCase(label)}</span>
+              </a>
+            );
+          })}
+        </div>
+
+        <div className="walkthrough-sections">
+          {WALKTHROUGH_SECTIONS.map((section) => (
+            <section className={`walkthrough-section ${openSection === section.id ? 'open' : ''}`} key={section.id}>
+              <button className="walkthrough-section-head" onClick={() => toggleSection(section.id)} aria-expanded={openSection === section.id}>
+                <div className="walkthrough-section-title">
+                  <span className="walkthrough-section-icon">{section.icon}</span>
+                  <div>
+                    <strong>{section.title}</strong>
+                    <small>{section.intro}</small>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="walkthrough-chevron" />
+              </button>
+              {openSection === section.id && (
+                <div className="walkthrough-section-body">
+                  <ul>
+                    {section.points.map((point) => <li key={point}>{point}</li>)}
+                  </ul>
+                  <div className="walkthrough-tool-tags">
+                    {section.tools.map((tool) => <span key={tool} className="walkthrough-tool-tag">{titleCase(tool)}</span>)}
+                  </div>
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+      </aside>
     </div>
   );
 }

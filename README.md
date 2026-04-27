@@ -67,8 +67,7 @@ Default local credentials:
 - `infra/prometheus`, `infra/alertmanager`, and `infra/grafana` provide monitoring, alert routing, silencing, and dashboards.
 - `docs/docker_deployment.md` explains the Compose stack, health checks, credentials, and smoke test.
 - `docs/monitoring.md` explains Prometheus metrics, Grafana panels, alert rules, and demo steps.
-- `docs/submission_checklist.md` maps professor rubric items to concrete project evidence.
-- `docs/` contains HLD, LLD, architecture, test plan, user manual, MLOps report, and viva notes.
+- `docs/` contains the architecture, design, testing, deployment, monitoring, and user-facing documentation used for submission.
 
 ## Docker Demo Commands
 
@@ -97,17 +96,13 @@ dvc exp run -S training.acceptance_test_macro_f1=0.78
 
 | Document | Purpose |
 | --- | --- |
-| `docs/submission_checklist.md` | Rubric-to-evidence map for final evaluation |
-| `docs/architecture.md` | System architecture, diagrams, data flow, deployment view |
-| `docs/hld.md` | High-level design choices and rationale |
-| `docs/lld.md` | API endpoints, schemas, modules, error handling |
-| `docs/test_plan.md` | Test strategy, test cases, acceptance criteria |
-| `docs/test_report.md` | Current verification evidence and model results |
-| `docs/user_manual.md` | Non-technical guide for using the app |
-| `docs/mlops_report.md` | Lifecycle, DVC, MLflow, Airflow, monitoring, rollback |
-| `docs/viva_notes.md` | Short answers and defense points |
-| `docs/demo_script.md` | Recommended live demo sequence |
-| `docs/monitoring.md` | Prometheus, Grafana, AlertManager, alerts |
-| `docs/docker_deployment.md` | Compose services, health checks, troubleshooting |
-| `docs/dvc_experiments.md` | DVC reproducibility and parameterized experiments |
-| `docs/data_card.md` | Dataset source, label mapping, limitations |
+| [Architecture](docs/architecture.md) | System architecture, block explanations, data flow, and deployment view |
+| [High-Level Design](docs/hld.md) | Design goals, service boundaries, and technology rationale |
+| [Low-Level Design](docs/lld.md) | API definitions, schemas, module responsibilities, and error handling |
+| [Test Plan](docs/test_plan.md) | Test strategy, test cases, and acceptance criteria |
+| [Test Report](docs/test_report.md) | Current verification evidence and latest observed results |
+| [User Manual](docs/user_manual.md) | Non-technical guide for using the application |
+| [Data Card](docs/data_card.md) | Dataset source, label mapping, assumptions, and limitations |
+| [Docker Deployment Guide](docs/docker_deployment.md) | Compose services, health checks, and deployment troubleshooting |
+| [DVC Experiments Guide](docs/dvc_experiments.md) | Reproducibility workflow, parameterized experiments, and metrics/plots usage |
+| [Monitoring Guide](docs/monitoring.md) | Prometheus, Grafana, AlertManager, and monitoring demo notes |

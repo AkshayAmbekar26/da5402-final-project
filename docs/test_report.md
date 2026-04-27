@@ -1,43 +1,26 @@
 # Test Report
 
-Date: 2026-04-19
+Date: 2026-04-27
 
 ## Automated Checks
 
 | Command | Result | Notes |
 | --- | --- | --- |
-| `ruff check .` | Passed | Python linting clean |
-| `pytest` | Passed | 32 passed, 1 skipped, 1 dependency warning |
-| `dvc repro` | Passed | Real dataset pipeline reproduced through publish stage and acceptance gate |
-| `dvc status` | Passed | Data and pipelines up to date |
-| `dvc push` | Passed | Versioned data/model artifacts pushed to the local DVC remote |
-| `dvc metrics show --json` | Passed | Metrics include accepted model, F1, latency, data rows, drift, and pipeline duration |
-| `npm audit --json` | Passed | 0 frontend vulnerabilities |
-| `npm run build` | Passed | React/Vite production build generated after UI redesign |
-| `docker compose config` | Passed | Compose service graph validates |
-| `bash -n scripts/docker_smoke.sh` | Passed | Docker smoke script syntax validates |
-| `docker compose build api frontend airflow-init airflow-webserver airflow-scheduler airflow-dag-processor` | Passed | API, frontend, and Airflow images build successfully |
-| Airflow DAG import check in Docker image | Passed | `sentiment_training_pipeline` and `sentiment_batch_ingestion_pipeline` import with zero errors |
-| Prometheus config validation | Passed | Scrape config, recording rules, and 21 alert rules validate |
-| AlertManager config validation | Passed | Local alert routing config validates |
-| `git diff --check` | Passed | No whitespace errors |
+| `ruff check .` | Passed | Latest lint run completed without violations |
+| `pytest --disable-warnings` | Passed | `41 passed, 1 skipped` in `3.27s` |
+| `docker compose --profile mlflow-serving config` | Passed | Compose service graph validates cleanly |
+| `bash -n scripts/docker_smoke.sh` | Passed | Smoke script syntax is valid |
+| `npm run build` | Passed | Vite production build completed successfully after the latest frontend/documentation polish |
 
 ## Live Endpoint Checks
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Live `/ready` request | Passed | Trained model loaded, fallback disabled |
-| Live `/predict` request | Passed | Returned sentiment using trained local-production model |
-| Live `/metrics-summary` request | Passed | Returned trained model, dataset, pipeline, and monitoring evidence |
-| Live `/monitoring/refresh` request | Passed | Refreshed pipeline summary and monitoring gauges |
-| Live `/metrics` request | Passed | Exported model, API, drift, feedback, data-quality, and pipeline metrics |
-
-## Checks Not Re-run In This Pass
-
-| Check | Status | Reason |
-| --- | --- | --- |
-| `make docker-smoke` | Not run in this documentation pass | Requires full Docker Compose stack running |
-| Manual browser responsiveness check | User-owned final check | User requested to perform browser check manually |
+| Live `/ready` request | Passed | API reported trained model loaded and fallback disabled in the latest clean stack run |
+| Live `/predict` request | Passed | Positive sample prediction returned successfully with sub-200 ms latency |
+| Live `/metrics-summary` request | Passed | Returned lifecycle, model, drift, and monitoring summary data for the frontend |
+| Live `/monitoring/refresh` request | Passed | Report-backed monitoring gauges refreshed successfully |
+| Live `/metrics` request | Passed | Prometheus endpoint exposed application, model, drift, and pipeline metrics |
 
 ## Current ML And Pipeline Results
 
@@ -51,22 +34,22 @@ Date: 2026-04-19
 | Candidate models | `5` |
 | Accepted candidates | `5` |
 | Selected model | `tfidf_logistic_tuned` |
-| Test accuracy | `0.7741` |
-| Test macro F1 | `0.7737` |
-| Test macro precision | `0.7733` |
-| Test macro recall | `0.7741` |
-| Latency per review | `0.0467 ms` |
+| Test accuracy | `0.7741218319253002` |
+| Test macro F1 | `0.7736922040873718` |
+| Test macro precision | `0.7733483772327219` |
+| Test macro recall | `0.7741171932947634` |
+| Latency per review | `0.028952127167523958 ms` |
 | Acceptance gate | Passed |
 | Drift detected | `false` |
-| Drift score | `0.0386` |
-| Pipeline duration | `44.6 s` |
-| Timed lifecycle stages | `9` |
-| Selected MLflow run ID | `61f2ee995e7d4084a210a3513d83eec8` |
+| Drift score | `0.09261533721669622` |
+| Pipeline duration | `24.14291595902614 s` |
+| Timed lifecycle stages | `11` |
+| Selected MLflow run ID | `5addd516eb57451bab36369d640deac9` |
 
 ## Acceptance Status
 
 - Unit and API tests passed.
-- DVC lifecycle is reproducible.
+- DVC lifecycle code and configuration remain in place for reproducible training and evaluation.
 - Dataset ingestion used the real public dataset with no fallback.
 - EDA generated JSON, Markdown, and chart artifacts.
 - Model macro F1 is above the `0.75` acceptance threshold.
@@ -74,10 +57,8 @@ Date: 2026-04-19
 - MLflow logged five candidate model runs.
 - Model comparison selected `tfidf_logistic_tuned` by the documented acceptance and validation-F1 rule.
 - Pipeline performance report records duration and throughput stage by stage.
-- Frontend builds successfully.
+- Frontend build passes on the latest UI iteration, including the in-app manual link.
 - Frontend analyzer includes validation, examples, product tour, guide panel, confidence visualization, explanation tokens, model metadata, and feedback submission.
 - Frontend MLOps screen shows API/model status, status-aware pipeline stages, recent pipeline events, model acceptance, data quality, drift, duration, throughput, metadata, and tool links.
 - Docker Compose validates.
-- API, frontend, and Airflow Docker images build successfully.
-- Airflow DAGs import successfully inside the built Airflow image.
-- Prometheus/Grafana/AlertManager configs are present and validated.
+- Prometheus/Grafana/AlertManager configs are present and validated in the running stack.
