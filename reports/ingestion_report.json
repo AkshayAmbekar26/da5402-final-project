@@ -1,0 +1,28 @@
+{
+  "cache_path": null,
+  "cache_used": false,
+  "class_distribution": {
+    "negative": 5000,
+    "neutral": 5000,
+    "positive": 5000
+  },
+  "dataset_name": "SetFit/amazon_reviews_multi_en",
+  "dataset_split": "train",
+  "fallback_error": null,
+  "fallback_used": false,
+  "ingested_at": "2026-04-29T12:59:37.925304+00:00",
+  "output_path": "/Users/akshayambekar/Code/da5402-mlops-assignments/da5402-final-project/data/raw/reviews.csv",
+  "rating_distribution": {
+    "1": 5000,
+    "3": 5000,
+    "5": 5000
+  },
+  "rows": 15000,
+  "rows_after_quality_filters": 15000,
+  "rows_after_schema_mapping": 15000,
+  "source": "SetFit/amazon_reviews_multi_en",
+  "source_homepage": "https://huggingface.co/datasets/SetFit/amazon_reviews_multi_en",
+  "source_rows_seen": 165000,
+  "stage": "ingest_data",
+  "status": "success"
+}

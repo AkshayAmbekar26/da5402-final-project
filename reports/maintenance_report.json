@@ -1,0 +1,35 @@
+{
+  "action": "continue_monitoring",
+  "checked_at": "2026-04-30T04:00:02.030652+00:00",
+  "cooldown": {
+    "active": false,
+    "cooldown_until": "2026-04-20T17:22:51.153928+00:00",
+    "hours": 6.0,
+    "last_triggered_at": "2026-04-20T11:22:51.153928+00:00"
+  },
+  "drift": {
+    "detected": false,
+    "report_path": "/opt/airflow/project/reports/drift_report.json",
+    "score": 0.09261533721669618,
+    "threshold": 0.25
+  },
+  "feedback": {
+    "accuracy": 1.0,
+    "correction_threshold_reached": false,
+    "correction_window_hours": 72.0,
+    "corrections": 0,
+    "count": 62,
+    "degraded": false,
+    "matches": 62,
+    "min_accuracy": 0.8,
+    "min_corrections": 10,
+    "min_count": 10,
+    "path": "/opt/airflow/project/feedback/feedback.jsonl",
+    "recent_corrections": 0
+  },
+  "last_triggered_at": "2026-04-20T11:22:51.153928+00:00",
+  "reasons": [],
+  "should_retrain": false,
+  "stage": "maintenance_policy",
+  "status": "success"
+}

@@ -1,0 +1,8 @@
+{
+  "completed_at": "2026-04-30T04:00:01.080191+00:00",
+  "drift_detected": false,
+  "drift_score": 0.09261533721669618,
+  "duration_seconds": 0.02801141599775292,
+  "rows_processed": 2249,
+  "throughput_rows_per_second": 80288.69373045673
+}

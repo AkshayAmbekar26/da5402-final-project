@@ -1,0 +1,8 @@
+{
+  "completed_at": "2026-04-29T12:59:37.925966+00:00",
+  "duration_seconds": 18.45180745900143,
+  "fallback_used": false,
+  "output_rows": 15000,
+  "rows_processed": 165000,
+  "throughput_rows_per_second": 8942.213404655233
+}

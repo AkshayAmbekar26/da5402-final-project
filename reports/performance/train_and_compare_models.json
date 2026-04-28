@@ -1,0 +1,14 @@
+{
+  "accepted_candidates": 5,
+  "candidate_models": 5,
+  "candidate_models_per_second": 0.721619494552658,
+  "completed_at": "2026-04-29T12:59:52.797000+00:00",
+  "duration_seconds": 6.928859374980675,
+  "effective_examples_per_second": 10814.911364860684,
+  "selected_candidate": "tfidf_logistic_tuned",
+  "test_rows": 2249,
+  "throughput_display": "0.72 models/s",
+  "total_examples_seen": 74935,
+  "train_rows": 10490,
+  "validation_rows": 2248
+}

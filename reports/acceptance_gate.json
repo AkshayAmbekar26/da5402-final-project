@@ -1,0 +1,10 @@
+{
+  "accepted": true,
+  "latency_ms_per_review": 0.03533840951024857,
+  "macro_f1": 0.7736922040873718,
+  "max_latency_ms": 200.0,
+  "min_macro_f1": 0.75,
+  "reason": "accepted",
+  "stage": "acceptance_gate",
+  "status": "success"
+}

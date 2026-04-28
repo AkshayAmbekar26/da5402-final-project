@@ -1,0 +1,9 @@
+{
+  "accepted": true,
+  "latency_ms_per_review": 0.03533840951024857,
+  "selected_model": "tfidf_logistic_tuned",
+  "test_accuracy": 0.7741218319253002,
+  "test_macro_f1": 0.7736922040873718,
+  "test_macro_precision": 0.7733483772327219,
+  "test_macro_recall": 0.7741171932947634
+}

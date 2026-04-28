@@ -1,0 +1,72 @@
+{
+  "acceptance_latency_ms": 200.0,
+  "acceptance_threshold_macro_f1": 0.75,
+  "accepted": true,
+  "latency_ms_per_review": 0.03533840951024857,
+  "metrics": {
+    "accuracy": 0.7741218319253002,
+    "class_report": {
+      "accuracy": 0.7741218319253002,
+      "macro avg": {
+        "f1-score": 0.7736922040873718,
+        "precision": 0.7733483772327219,
+        "recall": 0.7741171932947634,
+        "support": 2249.0
+      },
+      "negative": {
+        "f1-score": 0.7677852348993288,
+        "precision": 0.7719298245614035,
+        "recall": 0.7636849132176236,
+        "support": 749.0
+      },
+      "neutral": {
+        "f1-score": 0.6925653047555258,
+        "precision": 0.6958277254374159,
+        "recall": 0.6893333333333334,
+        "support": 750.0
+      },
+      "positive": {
+        "f1-score": 0.8607260726072608,
+        "precision": 0.8522875816993464,
+        "recall": 0.8693333333333333,
+        "support": 750.0
+      },
+      "weighted avg": {
+        "f1-score": 0.7736948305743384,
+        "precision": 0.7733490079809083,
+        "recall": 0.7741218319253002,
+        "support": 2249.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        572,
+        152,
+        25
+      ],
+      [
+        145,
+        517,
+        88
+      ],
+      [
+        24,
+        74,
+        652
+      ]
+    ],
+    "labels": [
+      "negative",
+      "neutral",
+      "positive"
+    ],
+    "macro_f1": 0.7736922040873718,
+    "macro_precision": 0.7733483772327219,
+    "macro_recall": 0.7741171932947634
+  },
+  "model_path": "/Users/akshayambekar/Code/da5402-mlops-assignments/da5402-final-project/models/sentiment_model.joblib",
+  "stage": "evaluate_model",
+  "status": "success",
+  "test_path": "/Users/akshayambekar/Code/da5402-mlops-assignments/da5402-final-project/data/processed/test.csv",
+  "total_latency_ms": 79.47608298854902
+}

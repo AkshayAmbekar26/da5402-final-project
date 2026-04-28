@@ -1,0 +1,44 @@
+{
+  "chosen_strategy": [
+    "Use TF-IDF sparse text features instead of transformer embeddings for low memory and fast CPU inference.",
+    "Compare multiple lightweight sklearn candidates before promotion.",
+    "Select only candidates passing macro F1 and latency gates.",
+    "Persist a small joblib model artifact and MLflow pyfunc serving artifact."
+  ],
+  "latency": {
+    "candidate_latency_ms_per_review": {
+      "count_naive_bayes": 0.020418320200406015,
+      "tfidf_logistic_baseline": 0.019745839526876807,
+      "tfidf_logistic_regularized": 0.022720000124536455,
+      "tfidf_logistic_tuned": 0.03462000051513314,
+      "tfidf_sgd_log_loss": 0.03298668016213924
+    },
+    "fastest_candidate": "tfidf_logistic_baseline",
+    "passes_target": true,
+    "selected_latency_ms_per_review": 0.03462000051513314,
+    "target_headroom_ratio": 5777.0074241499715,
+    "target_latency_ms_per_review": 200.0
+  },
+  "model_family": "classical_sparse_text_classifier",
+  "model_size": {
+    "bytes": 5261988,
+    "megabytes": 5.018222808837891
+  },
+  "optimization_goal": "CPU-only local inference under the 200 ms business latency target.",
+  "quality_tradeoff": {
+    "selected_test_macro_f1": 0.7736922040873718,
+    "selection_rule": "highest validation macro F1 among candidates passing test macro F1 and latency gates"
+  },
+  "quantization_or_pruning": {
+    "applied": false,
+    "reason": "The final model is a sparse linear sklearn pipeline, not a neural network. Quantization/pruning would add complexity without meaningful benefit for this artifact."
+  },
+  "resource_constraints": {
+    "cloud_required": false,
+    "gpu_required": false,
+    "serving_target": "local Docker Compose / on-prem CPU"
+  },
+  "selected_model": "tfidf_logistic_tuned",
+  "stage": "model_optimization",
+  "status": "success"
+}

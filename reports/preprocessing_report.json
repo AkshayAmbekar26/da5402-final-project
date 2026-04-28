@@ -1,0 +1,57 @@
+{
+  "final_rows": 14987,
+  "input_rows": 15000,
+  "outputs": {
+    "test": "/Users/akshayambekar/Code/da5402-mlops-assignments/da5402-final-project/data/processed/test.csv",
+    "train": "/Users/akshayambekar/Code/da5402-mlops-assignments/da5402-final-project/data/processed/train.csv",
+    "validation": "/Users/akshayambekar/Code/da5402-mlops-assignments/da5402-final-project/data/processed/validation.csv"
+  },
+  "random_seed": 42,
+  "rejected_output": "/Users/akshayambekar/Code/da5402-mlops-assignments/da5402-final-project/data/interim/rejected_reviews.csv",
+  "rejected_rows": 13,
+  "rows_removed_duplicates": 13,
+  "rows_removed_empty": 0,
+  "rows_removed_too_long": 0,
+  "rows_removed_too_short": 0,
+  "split_class_distribution": {
+    "test": {
+      "negative": 749,
+      "neutral": 750,
+      "positive": 750
+    },
+    "train": {
+      "negative": 3496,
+      "neutral": 3498,
+      "positive": 3496
+    },
+    "validation": {
+      "negative": 750,
+      "neutral": 749,
+      "positive": 749
+    }
+  },
+  "split_rating_distribution": {
+    "test": {
+      "1": 749,
+      "3": 750,
+      "5": 750
+    },
+    "train": {
+      "1": 3496,
+      "3": 3498,
+      "5": 3496
+    },
+    "validation": {
+      "1": 750,
+      "3": 749,
+      "5": 749
+    }
+  },
+  "splits": {
+    "test": 2249,
+    "train": 10490,
+    "validation": 2248
+  },
+  "stage": "preprocess_data",
+  "status": "success"
+}

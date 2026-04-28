@@ -1,0 +1,38 @@
+{
+  "class_distribution": {
+    "negative": 5000,
+    "neutral": 5000,
+    "positive": 5000
+  },
+  "class_imbalance_ratio": 1.0,
+  "duplicate_label_conflicts": 1,
+  "duplicate_review_ids": 0,
+  "duplicate_review_text": 13,
+  "empty_reviews": 0,
+  "errors": [],
+  "input_path": "/Users/akshayambekar/Code/da5402-mlops-assignments/da5402-final-project/data/raw/reviews.csv",
+  "invalid_ratings": 0,
+  "invalid_sentiments": [],
+  "long_reviews": 0,
+  "null_counts": {
+    "ingested_at": 0,
+    "rating": 0,
+    "review_id": 0,
+    "review_text": 0,
+    "sentiment": 0,
+    "source": 0
+  },
+  "rating_distribution": {
+    "1": 5000,
+    "3": 5000,
+    "5": 5000
+  },
+  "rows": 15000,
+  "short_reviews": 0,
+  "stage": "validate_raw_data",
+  "status": "success",
+  "warnings": [
+    "Duplicate review_text values found: 13",
+    "Same review text appears with multiple sentiment labels: 1"
+  ]
+}
