@@ -24,10 +24,6 @@ data/baselines/*.json
 models/*.joblib
 models/*.json
 models/rollback/
-reports/*.json
-reports/*.md
-reports/*.png
-reports/performance/
 dvc_plots/
 feedback/*.jsonl
 !feedback/retraining_feedback.jsonl
@@ -45,3 +41,8 @@ airflow/logs/
 airflow/plugins/
 postgres-data/
 grafana-data/
+
+# Generated report artifacts
+reports/**
+!reports/.gitkeep
+!reports/.gitignore

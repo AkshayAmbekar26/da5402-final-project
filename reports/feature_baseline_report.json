@@ -1,7 +1,0 @@
-{
-  "baseline_path": "/Users/akshayambekar/Code/da5402-mlops-assignments/da5402-final-project/data/baselines/feature_baseline.json",
-  "stage": "generate_features",
-  "status": "success",
-  "tracked_feature_variances": 50,
-  "tracked_features": 50
-}

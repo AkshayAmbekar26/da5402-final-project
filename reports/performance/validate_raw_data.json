@@ -1,8 +1,0 @@
-{
-  "completed_at": "2026-04-29T12:59:38.572190+00:00",
-  "duration_seconds": 0.06622379200416617,
-  "rows_processed": 15000,
-  "status": "success",
-  "throughput_rows_per_second": 226504.69787438845,
-  "warning_count": 2
-}

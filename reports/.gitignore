@@ -1,0 +1,4 @@
+# Keep the directory in Git, but ignore generated report artifacts.
+*
+!.gitignore
+!.gitkeep
