@@ -14,7 +14,7 @@ RUN pip install --default-timeout=300 --retries=10 --no-cache-dir -c constraints
     cloudpickle \
     gunicorn \
     joblib \
-    mlflow-skinny==3.11.1 \
+    mlflow==3.11.1 \
     numpy \
     pandas \
     psutil \
@@ -22,9 +22,6 @@ RUN pip install --default-timeout=300 --retries=10 --no-cache-dir -c constraints
     scikit-learn \
     scipy \
     sqlalchemy
-RUN pip install --default-timeout=300 --retries=10 --no-cache-dir \
-    Flask \
-    Flask-CORS
 COPY ml /app/ml
 RUN pip install --default-timeout=300 --retries=10 --no-cache-dir --no-deps -e .
 RUN mkdir -p /app/models /mlflow/artifacts

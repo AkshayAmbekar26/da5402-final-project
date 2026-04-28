@@ -44,6 +44,41 @@ wait_for_url() {
   done
 }
 
+wait_for_mlflow_ui() {
+  for attempt in $(seq 1 "$RETRIES"); do
+    if curl --fail --silent --max-time 10 "$MLFLOW_URL/" | grep -q "<title>MLflow</title>"; then
+      printf "ok - mlflow ui\n"
+      return 0
+    fi
+
+    if [[ "$attempt" == "$RETRIES" ]]; then
+      printf "failed - mlflow ui (%s)\n" "$MLFLOW_URL/" >&2
+      return 1
+    fi
+    sleep "$SLEEP_SECONDS"
+  done
+}
+
+wait_for_mlflow_graphql() {
+  local payload='{"query":"query { __typename }"}'
+  for attempt in $(seq 1 "$RETRIES"); do
+    if curl --fail --silent --max-time 10 \
+      -H "Content-Type: application/json" \
+      -X POST \
+      -d "$payload" \
+      "$MLFLOW_URL/graphql" | python3 -c "import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get('errors') in (None, []) else 1)"; then
+      printf "ok - mlflow graphql\n"
+      return 0
+    fi
+
+    if [[ "$attempt" == "$RETRIES" ]]; then
+      printf "failed - mlflow graphql (%s)\n" "$MLFLOW_URL/graphql" >&2
+      return 1
+    fi
+    sleep "$SLEEP_SECONDS"
+  done
+}
+
 show_airflow_debug() {
   if command -v docker >/dev/null 2>&1; then
     docker compose --profile mlflow-serving ps airflow-webserver airflow-scheduler airflow-dag-processor || true
@@ -81,6 +116,8 @@ wait_for_url "api prediction" "$API_BASE_URL/predict" "POST" "$predict_payload"
 wait_for_url "api prometheus metrics" "$API_BASE_URL/metrics"
 wait_for_url "api monitoring refresh" "$API_BASE_URL/monitoring/refresh" "POST" "{}"
 wait_for_url "mlflow" "$MLFLOW_URL/health"
+wait_for_mlflow_ui
+wait_for_mlflow_graphql
 if [[ "${RUN_MLFLOW_SERVING_SMOKE:-false}" == "true" ]]; then
   wait_for_url "mlflow model server health" "$MLFLOW_MODEL_SERVER_URL/ping"
   wait_for_url "mlflow model server prediction" "$MLFLOW_MODEL_SERVER_URL/invocations" "POST" '{"dataframe_records":[{"review_text":"Excellent product quality and fast delivery."}]}'
