@@ -66,28 +66,43 @@ The system is divided into four major layers:
 4. **Observability layer**  
    Prometheus, Grafana, AlertManager, and node exporter for health, latency, drift, pipeline, and infrastructure monitoring.
 
-### 5.1 System Context Diagram
+### 5.1 High-Level Design Diagram
 
 ```mermaid
-flowchart LR
-  User["Business or demo user"] --> FE["React / Vite frontend"]
-  FE -->|"REST"| API["FastAPI inference API"]
-  API --> Model["Selected model artifact"]
-  API --> Feedback["Feedback log"]
-  API --> Metrics["Prometheus metrics endpoint"]
+flowchart TD
+  Problem["E-commerce review sentiment problem"] --> Product["Product Experience"]
+  Problem --> Lifecycle["ML Lifecycle Design"]
+  Problem --> Ops["Operational Design"]
 
-  DVC["DVC reproducible pipeline"] --> MLPkg["Python ML package"]
-  Airflow["Airflow orchestration DAGs"] --> MLPkg
-  MLPkg --> Reports["Lifecycle reports"]
-  MLPkg --> MLflow["MLflow tracking + model packaging"]
-  MLPkg --> Model
+  subgraph ProductLayer["Product Experience"]
+    Product --> FE["React / Vite frontend"]
+    FE --> API["FastAPI REST API"]
+    API --> UX["Prediction result, confidence, explanation, feedback"]
+  end
 
-  Prom["Prometheus"] --> API
-  Prom --> Node["node_exporter"]
-  Grafana["Grafana dashboards"] --> Prom
-  Prom --> AlertRules["Alert rules"]
-  AlertRules --> AM["AlertManager"]
+  subgraph LifecycleLayer["ML Lifecycle Design"]
+    Lifecycle --> Ingest["Ingest and validate data"]
+    Ingest --> Prep["EDA, preprocessing, deterministic split"]
+    Prep --> Train["Train and compare candidate models"]
+    Train --> Gate["Evaluate and apply acceptance gate"]
+    Gate --> Artifact["Export selected model artifact"]
+  end
+
+  subgraph OpsLayer["Operational Design"]
+    Ops --> DVC["DVC reproducibility"]
+    Ops --> Airflow["Airflow orchestration"]
+    Ops --> MLflow["MLflow experiment tracking"]
+    Ops --> Monitor["Prometheus + Grafana + AlertManager"]
+  end
+
+  Artifact --> API
+  API --> FeedbackLoop["Feedback collection"]
+  FeedbackLoop --> Monitor
+  Monitor --> Retrain["Maintenance and retraining decision"]
+  Retrain --> Train
 ```
+
+This high-level design diagram focuses on the **logical design of the system**, not just the runtime components. It shows how the project is structured around three concerns: the product experience, the ML lifecycle, and the operational MLOps layer. The diagram is meant to answer the question: **how is the solution designed conceptually from problem definition to serving, monitoring, feedback, and retraining?**
 
 ### 5.2 Container and Service View
 

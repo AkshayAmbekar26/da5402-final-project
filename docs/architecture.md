@@ -6,34 +6,46 @@ This project is a local, end-to-end MLOps application for e-commerce review sent
 
 The architecture intentionally prioritizes MLOps completeness over model complexity. The deployed model is a fast TF-IDF plus Logistic Regression pipeline because it is explainable, reproducible, and reliable on local hardware.
 
-## High-Level System Diagram
+## Architectural Diagram
 
 ```mermaid
 flowchart LR
-  User["Non-technical user"] --> FE["React/Vite frontend"]
-  FE -->|"REST: /predict, /feedback, /metrics-summary"| API["FastAPI API service"]
-  API --> Model["Local production model artifact"]
-  API --> Feedback["Feedback JSONL log"]
-  API --> Metrics["Prometheus /metrics"]
+  User["User / Evaluator"] --> FE["React / Vite Frontend"]
+  FE -->|"REST APIs"| API["FastAPI Inference API"]
 
-  subgraph MLLifecycle["ML lifecycle"]
-    DVC["DVC DAG"] --> Pipeline["Python ML package"]
-    Airflow["Airflow DAGs"] --> Pipeline
-    Pipeline --> Data["Versioned data artifacts"]
-    Pipeline --> Reports["EDA, evaluation, drift, performance reports"]
-    Pipeline --> MLflow["MLflow tracking and model registry"]
-    Pipeline --> Model
+  subgraph Serving["Serving Layer"]
+    API --> Model["Selected Model Artifact"]
+    API --> Feedback["Feedback JSONL Log"]
+    API --> Summary["Metrics Summary + Health Endpoints"]
   end
 
-  Prometheus["Prometheus"] --> API
-  Prometheus --> NodeExporter["node_exporter"]
-  Prometheus --> AlertManager["AlertManager"]
-  Grafana["Grafana dashboards"] --> Prometheus
-  FE -->|"Tool links"| Airflow
-  FE -->|"Tool links"| MLflow
-  FE -->|"Tool links"| Prometheus
-  FE -->|"Tool links"| Grafana
+  subgraph Lifecycle["ML Lifecycle Layer"]
+    DVC["DVC Reproducible Pipeline"] --> MLPkg["Python ML Package"]
+    Airflow["Airflow DAGs"] --> MLPkg
+    MLPkg --> Reports["Lifecycle Reports"]
+    MLPkg --> Baselines["Drift Baselines"]
+    MLPkg --> Model
+    MLPkg --> MLflow["MLflow Tracking / Registry"]
+  end
+
+  subgraph Observability["Observability Layer"]
+    API --> Metrics["Prometheus /metrics"]
+    Metrics --> Prometheus["Prometheus"]
+    Reports --> Prometheus
+    Prometheus --> Grafana["Grafana Dashboards"]
+    Prometheus --> AlertRules["Alert Rules"]
+    AlertRules --> AlertManager["AlertManager"]
+    NodeExporter["node_exporter"] --> Prometheus
+  end
+
+  FE -->|"Tool Links"| Airflow
+  FE -->|"Tool Links"| MLflow
+  FE -->|"Tool Links"| Grafana
+  FE -->|"Tool Links"| Prometheus
+  FE -->|"Tool Links"| AlertManager
 ```
+
+This architectural diagram focuses on the **major software blocks and their runtime responsibilities**. The frontend is the user-facing product layer, the FastAPI service is the serving layer, the DVC/Airflow/MLflow/Python package combination forms the ML lifecycle layer, and Prometheus/Grafana/AlertManager form the observability layer. The diagram is meant to answer the question: **what are the main system components, and how do they interact at runtime?**
 
 ## Service Responsibilities
 
