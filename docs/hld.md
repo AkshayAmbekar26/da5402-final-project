@@ -1,109 +1,304 @@
 # High-Level Design
 
-## Problem Statement
+## 1. Purpose
 
-The application classifies e-commerce product reviews into `positive`, `neutral`, or `negative` sentiment. The user-facing objective is simple: help a business user quickly understand customer feedback without manually reading every review.
+This document describes the high-level design of the **Product Review Sentiment Analyzer for E-commerce**. The system was designed not just as a sentiment classifier, but as a complete local MLOps product that demonstrates:
 
-The course objective is broader: demonstrate a complete local MLOps lifecycle with automation, reproducibility, versioning, experiment tracking, deployment, monitoring, alerting, feedback, and documentation.
+- automated data ingestion and preprocessing
+- reproducible training and evaluation
+- experiment tracking and model traceability
+- API-based deployment with frontend/backend separation
+- monitoring, alerting, feedback collection, and retraining readiness
 
-## Success Criteria
+The design prioritizes **MLOps completeness, reproducibility, observability, and local deployability** over model novelty.
 
-| Category | Metric | Target | Current Evidence |
-| --- | --- | --- | --- |
-| ML quality | Test macro F1 | `>= 0.75` | `0.7737` |
-| Business latency | Single-review inference | `< 200 ms` | `0.0467 ms` evaluation benchmark |
-| Reproducibility | DVC pipeline | `dvc repro` succeeds | Passed |
-| Traceability | Git + MLflow + DVC | Model metadata includes all three | Present in `models/model_metadata.json` |
-| Deployment | Separate frontend/backend | Docker Compose services | Present |
-| Monitoring | API, ML, pipeline, drift, infra metrics | Prometheus/Grafana/AlertManager | Present |
+## 2. Problem Summary
 
-## Architectural Decisions
+E-commerce platforms collect a large number of customer reviews. Manually reading and categorizing them is time-consuming and inconsistent. This system allows a user to submit a review and receive a sentiment prediction of:
 
-| Decision | Choice | Rationale |
-| --- | --- | --- |
-| Model | TF-IDF plus Logistic Regression | Fast, explainable, local hardware friendly, reliable for demo |
-| Frontend | React/Vite | Strong UI/UX, separate build artifact, configurable API URL |
-| API | FastAPI | Typed schemas, automatic docs, health/readiness, Prometheus integration |
-| Pipeline orchestration | Airflow | Visible DAG graph, retries, logs, operational console |
-| Reproducibility | DVC | Staged DAG, artifact hashes, parameterized experiments |
-| Experiment tracking | MLflow | Run IDs, parameters, metrics, artifacts, registry metadata |
-| Monitoring | Prometheus, Grafana, AlertManager, node_exporter | Application plus infrastructure observability |
-| Packaging | Docker Compose | Local environment parity without cloud services |
+- `positive`
+- `neutral`
+- `negative`
 
-## Functional Components
+The project also exposes the underlying lifecycle needed to operate such a model in a disciplined way: data validation, experiment comparison, deployment packaging, monitoring, alerting, feedback logging, and retraining decisions.
 
-### User Product Flow
+## 3. Design Goals
 
-1. User opens the frontend.
-2. User pastes or selects a sample product review.
-3. Frontend sends `POST /predict`.
-4. API validates input and calls the loaded model.
-5. API returns sentiment, confidence, class probabilities, influential tokens, latency, model version, and MLflow run ID.
-6. User optionally submits the actual sentiment through `POST /feedback`.
-7. Feedback becomes monitoring/retraining input.
+### 3.1 Functional Goals
 
-### MLOps Flow
+- classify a single review through a web interface
+- expose confidence, class probabilities, explanation tokens, latency, and model metadata
+- collect user feedback when ground truth becomes available
+- provide a separate MLOps view for health, pipeline state, drift, and supporting tools
 
-1. DVC runs the reproducible lifecycle DAG.
-2. Airflow provides an orchestration console and batch input automation.
-3. MLflow records model experiments and artifacts.
-4. FastAPI serves the selected local-production model.
-5. Prometheus scrapes API and infrastructure metrics.
-6. Grafana visualizes service health, model quality, drift, feedback, pipeline duration, and resource usage.
-7. AlertManager routes threshold-based alerts and supports silencing.
+### 3.2 Non-Functional Goals
 
-## Lifecycle Design
+- **reproducibility:** every model should be recoverable from code, parameters, data state, and MLflow run metadata
+- **traceability:** model predictions should be tied back to the selected training run
+- **performance:** single-review inference should remain below `200 ms`
+- **operability:** the stack must expose health, readiness, metrics, alerts, and logs
+- **environment parity:** local development and demo deployment should be containerized
+- **loose coupling:** frontend and backend must remain separate software blocks communicating only through REST
+
+## 4. Constraints and Assumptions
+
+| Item | Design impact |
+| --- | --- |
+| No cloud services allowed | All services run locally through Docker Compose |
+| Final evaluation emphasizes MLOps | Tooling and lifecycle completeness matter more than model complexity |
+| Local hardware only | Lightweight, explainable classical NLP model is preferred |
+| Public review dataset | Need explicit validation, EDA, and documented limitations |
+| Demonstration-driven evaluation | System must be easy to explain visually through UI, DAGs, and dashboards |
+
+## 5. High-Level Architecture
+
+The system is divided into four major layers:
+
+1. **Product layer**  
+   React/Vite frontend for review submission, result display, user guidance, and MLOps visibility.
+
+2. **Serving layer**  
+   FastAPI backend that loads the selected model, exposes prediction and feedback endpoints, and emits Prometheus metrics.
+
+3. **ML lifecycle layer**  
+   Python ML package, DVC pipeline, MLflow experiment tracking, and Airflow orchestration.
+
+4. **Observability layer**  
+   Prometheus, Grafana, AlertManager, and node exporter for health, latency, drift, pipeline, and infrastructure monitoring.
+
+### 5.1 System Context Diagram
 
 ```mermaid
 flowchart LR
-  Business["Problem and success metrics"] --> Data["Data ingestion and validation"]
-  Data --> EDA["EDA and preprocessing"]
-  EDA --> Baseline["Drift baseline"]
-  Baseline --> Experiments["MLflow candidate experiments"]
-  Experiments --> Gate["Evaluation and acceptance gate"]
-  Gate --> Serve["FastAPI serving"]
-  Serve --> Monitor["Prometheus and Grafana"]
-  Monitor --> Feedback["Ground-truth feedback"]
-  Feedback --> Retrain["Airflow/DVC retraining readiness"]
-  Retrain --> Experiments
+  User["Business or demo user"] --> FE["React / Vite frontend"]
+  FE -->|"REST"| API["FastAPI inference API"]
+  API --> Model["Selected model artifact"]
+  API --> Feedback["Feedback log"]
+  API --> Metrics["Prometheus metrics endpoint"]
+
+  DVC["DVC reproducible pipeline"] --> MLPkg["Python ML package"]
+  Airflow["Airflow orchestration DAGs"] --> MLPkg
+  MLPkg --> Reports["Lifecycle reports"]
+  MLPkg --> MLflow["MLflow tracking + model packaging"]
+  MLPkg --> Model
+
+  Prom["Prometheus"] --> API
+  Prom --> Node["node_exporter"]
+  Grafana["Grafana dashboards"] --> Prom
+  Prom --> AlertRules["Alert rules"]
+  AlertRules --> AM["AlertManager"]
 ```
 
-## Loose Coupling
+### 5.2 Container and Service View
 
-The frontend and backend are separate software blocks:
+```mermaid
+flowchart TB
+  subgraph Product["Product layer"]
+    FE["frontend"]
+    API["api"]
+  end
 
-- Frontend has no direct access to model files, DVC, MLflow, or Python code.
-- Frontend communicates only through REST APIs.
-- Backend exposes stable API contracts and does not depend on frontend code.
-- API base URL is configured through `VITE_API_BASE_URL`.
-- Docker Compose builds the frontend and API as independent services.
+  subgraph MLOps["Lifecycle and orchestration"]
+    MLF["mlflow"]
+    MLFS["mlflow-model-server"]
+    AW["airflow-webserver"]
+    AS["airflow-scheduler"]
+    AD["airflow-dag-processor"]
+    PG["postgres"]
+  end
 
-## Failure And Recovery Strategy
+  subgraph Observability["Monitoring and alerting"]
+    PR["prometheus"]
+    GF["grafana"]
+    AM["alertmanager"]
+    NE["node-exporter"]
+  end
 
-| Failure | Detection | Mitigation |
+  FE --> API
+  API --> MLFS
+  API --> MLF
+  AS --> MLF
+  AW --> PG
+  AS --> PG
+  AD --> PG
+  PR --> API
+  PR --> NE
+  GF --> PR
+  PR --> AM
+```
+
+## 6. Major Architectural Decisions
+
+| Decision | Chosen approach | Why it was chosen |
 | --- | --- | --- |
-| API unavailable | `/health`, Prometheus `up`, frontend error state | Restart API container, inspect logs |
-| Model missing | `/ready`, `sentiment_model_loaded` | Re-run `dvc repro` or restore model artifact |
-| Bad data | validation report, rejected rows, dashboard warnings | Quarantine/reject rows, inspect validation report |
-| Model quality drop | acceptance gate, macro F1 gauge | Keep previous model, retrain before promotion |
-| Drift | drift report and alert rule | Trigger retraining review |
-| High latency | Prometheus latency histogram and alert | Use lightweight model, inspect host metrics |
-| Docker service issue | health checks and smoke test | `docker compose logs <service>` |
+| Model family | TF-IDF + Logistic Regression | Small, fast, explainable, and reliable on local hardware |
+| Frontend | React/Vite | Better UX, strong separation from backend, simple static deployment |
+| API | FastAPI | Typed schemas, built-in docs, clean REST contracts, health/readiness support |
+| Reproducibility | DVC | Stage graph, parameterized pipeline, artifact tracking, `dvc repro` support |
+| Experiment tracking | MLflow | Tracks runs, metrics, artifacts, and model lineage |
+| Orchestration | Airflow | DAG UI, scheduling, retries, history, operational console |
+| Monitoring | Prometheus + Grafana | Standard metrics collection and near-real-time visualization |
+| Alerting | AlertManager | Rule-based routing, grouping, silencing, and notification flow |
+| Packaging | Docker Compose | Local parity across services without requiring cloud infrastructure |
 
-## Rollback Strategy
+## 7. Core Functional Flows
 
-Rollback is model-artifact driven:
+### 7.1 User Prediction Flow
 
-1. Keep previous model versions in MLflow and DVC.
-2. Restore an older Git/DVC state with `git checkout <commit>` and `dvc checkout`.
-3. Point the API to the desired model artifact or registry stage/version.
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant FE as Frontend
+  participant API as FastAPI
+  participant MS as ModelService
+
+  U->>FE: Enter review text
+  FE->>API: POST /predict
+  API->>MS: validate and predict
+  MS-->>API: sentiment, probabilities, explanation, metadata
+  API-->>FE: prediction response
+  FE-->>U: Render result, confidence, latency, model info
+```
+
+### 7.2 Feedback Loop
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant FE as Frontend
+  participant API as FastAPI
+  participant FB as Feedback Log
+  participant MON as Monitoring + Maintenance
+
+  U->>FE: Submit actual sentiment
+  FE->>API: POST /feedback
+  API->>FB: Append JSONL record
+  API-->>FE: accepted
+  MON->>FB: Read feedback during maintenance checks
+  MON-->>MON: compute accuracy and corrections
+```
+
+### 7.3 Training and Promotion Flow
+
+```mermaid
+flowchart LR
+  Ingest["Ingest data"] --> Validate["Validate raw data"]
+  Validate --> EDA["EDA and reports"]
+  EDA --> Prep["Preprocess and split"]
+  Prep --> Baseline["Compute drift baseline"]
+  Baseline --> Train["Train candidate models"]
+  Train --> Track["Log MLflow runs"]
+  Track --> Eval["Evaluate selected model"]
+  Eval --> Gate["Acceptance gate"]
+  Gate -->|pass| Export["Export model artifacts"]
+  Export --> Serve["Serve through FastAPI and MLflow"]
+  Gate -->|fail| Review["Keep previous model / investigate"]
+```
+
+## 8. Component Responsibilities
+
+| Component | Responsibility | Key outputs |
+| --- | --- | --- |
+| Frontend | Review submission, feedback form, in-app guide, MLOps dashboard, external tool navigation | Browser UI |
+| FastAPI API | Prediction, feedback, health/readiness, metrics summary, Prometheus exposition | REST responses and metrics |
+| Model service | Load model, support local or MLflow serving mode, compute explanation payload | Prediction contract |
+| ML package | Data ingestion, validation, EDA, preprocessing, features, training, evaluation, drift, maintenance | CSV, JSON, Markdown, model artifacts |
+| DVC | Reproducible lifecycle graph and dependency management | `dvc.yaml`, `dvc.lock`, versioned artifacts |
+| Airflow | Orchestration and operational DAG visibility | DAG runs, retries, task logs |
+| MLflow | Experiment tracking and model packaging | Run IDs, metrics, artifacts, model package |
+| Prometheus | Metric scraping and alert rule evaluation | Time-series data |
+| Grafana | Dashboarding for system and operations views | Live dashboards |
+| AlertManager | Alert grouping and routing | Alert notifications |
+
+## 9. Data and Model Lifecycle Design
+
+### 9.1 Data Lifecycle
+
+- Raw public review data is ingested from `SetFit/amazon_reviews_multi_en`.
+- Validation checks schema, nulls, duplicates, label consistency, and class coverage.
+- Preprocessing normalizes text, removes invalid rows, and creates deterministic splits.
+- Rejected rows are preserved separately for auditability.
+- Baseline statistics are stored for later drift comparison.
+
+### 9.2 Model Lifecycle
+
+- Multiple candidate models are trained from the same processed split.
+- Each candidate is logged to MLflow with parameters, metrics, and artifacts.
+- The selection rule promotes the best candidate that satisfies acceptance criteria.
+- The chosen model is exported both as a local `joblib` artifact and as an MLflow pyfunc artifact.
+- The API reads model metadata to expose version and run-level traceability.
+
+## 10. Observability and Maintenance Design
+
+### 10.1 Monitoring Scope
+
+The monitoring design covers:
+
+- API health and readiness
+- request volume, latency, and error rate
+- invalid input rates
+- prediction distribution
+- model loaded / fallback state
+- model quality and acceptance status
+- drift score and drift flag
+- feedback accuracy and correction volume
+- pipeline timing and throughput
+- infrastructure CPU, memory, and disk
+
+### 10.2 Maintenance Logic
+
+Retraining readiness is not based on one signal alone. The maintenance policy combines:
+
+- drift score threshold
+- observed feedback accuracy
+- recent correction count
+- cooldown protection to avoid repeated retriggers
+
+This design makes retraining more realistic and less noisy than a single-threshold mechanism.
+
+## 11. Loose Coupling Strategy
+
+Loose coupling is a central design rule in this project.
+
+- The frontend does not import backend or model code.
+- The backend exposes stable REST contracts rather than UI-specific internals.
+- Tool URLs are configuration-driven rather than hardwired into the frontend logic.
+- Frontend and backend are packaged in separate containers.
+- Training/orchestration code is separate from serving code.
+
+This separation improves testability, demo clarity, and deployment flexibility.
+
+## 12. Failure and Recovery Design
+
+| Failure case | Detection mechanism | Recovery approach |
+| --- | --- | --- |
+| API process down | `/health`, Prometheus `up`, frontend error state | Restart API container, inspect logs |
+| Model artifact missing | `/ready`, model-loaded gauge | Reproduce artifacts through DVC or restore previous model |
+| Validation issues in raw data | Validation report and dashboard warnings | Reject or quarantine bad data and inspect report |
+| Model quality below gate | Evaluation report and acceptance check | Do not promote candidate; keep prior artifact |
+| Drift detected | Drift report, Prometheus alert rule | Review retraining conditions and rerun training path |
+| High latency | Histogram, p95 latency panels, alerts | Inspect resource usage or revert to lighter model |
+| Batch pipeline malformed input | Airflow task failure and quarantine path | Preserve file for analysis and rerun corrected batch |
+
+## 13. Rollback Strategy
+
+Rollback is model-driven rather than UI-driven.
+
+1. Identify the previous acceptable model state through MLflow metadata and DVC artifacts.
+2. Restore the desired code/data state using Git and DVC.
+3. Point the API to the target artifact or serving configuration.
 4. Restart the API service.
 5. Verify `/ready`, `/predict`, `/metrics`, and frontend behavior.
 
-## Known Local-Demo Limitations
+This keeps rollback simple, deterministic, and aligned with the reproducibility story.
 
-- TLS and authentication are documented but not enabled in the local demo.
-- Continuous scheduled retraining is not enabled by default, but the retraining path exists through DVC and Airflow.
-- The primary dataset does not include product-category metadata, so category-level bias analysis is limited.
-- The model is intentionally lightweight; transformer improvement is future work, not required for the course rubric.
+## 14. Known Limitations
 
+- The local demo does not enable full production authentication or TLS.
+- The model is intentionally lightweight rather than transformer-based.
+- Feedback in the local setup is mostly demo-driven rather than naturally accumulated from production traffic.
+- Batch operational ingestion is implemented for orchestration coverage, while user-facing batch inference is future work.
+
+## 15. Summary
+
+At the HLD level, this system is a **separated product + lifecycle + observability architecture**. The product experience remains simple for a non-technical user, while the underlying design demonstrates the full MLOps story: reproducible data flow, tracked experimentation, automated orchestration, containerized deployment, monitoring, alerting, feedback capture, and retraining readiness.

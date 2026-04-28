@@ -1,12 +1,32 @@
 # Low-Level Design
 
-## Scope
+## 1. Purpose
 
-This document defines the API contracts, module responsibilities, validation rules, error handling, and operational interfaces for the Product Review Sentiment Analyzer.
+This document defines the low-level design of the Product Review Sentiment Analyzer. It focuses on:
 
-## API Base
+- API endpoint contracts
+- request and response schemas
+- module responsibilities
+- runtime interactions between components
+- validation rules and error handling
+- operational and monitoring interfaces
 
-Local default:
+The goal of this document is to make the implementation behavior explicit enough that the API layer, ML layer, and monitoring layer can be understood and verified independently.
+
+## 2. Runtime Entry Points
+
+| Layer | Entry point | Responsibility |
+| --- | --- | --- |
+| Frontend | `apps/frontend/src/main.jsx` | Main UI, route-level state, analyzer, MLOps dashboard, guide panels |
+| API | `apps/api/sentiment_api/main.py` | FastAPI app, middleware, endpoints, exception handlers |
+| Model loading | `apps/api/sentiment_api/model_service.py` | Artifact loading, local inference, MLflow serving integration, fallback inference |
+| Settings | `apps/api/sentiment_api/config.py` | Environment-driven runtime configuration |
+| Metrics | `apps/api/sentiment_api/metrics.py` | Prometheus counters, gauges, histograms, summaries |
+| Report-backed gauges | `apps/api/sentiment_api/report_metrics.py` | Converts JSON report artifacts into Prometheus metrics |
+
+## 3. Base URL and Environment
+
+Local default API base:
 
 ```text
 http://localhost:8000
@@ -18,13 +38,60 @@ Frontend configuration:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-## Public API Definitions
+Important API runtime variables:
 
-### `GET /health`
+| Variable | Meaning |
+| --- | --- |
+| `MODEL_PATH` | local trained model artifact path |
+| `MODEL_METADATA_PATH` | metadata JSON for selected model |
+| `FEATURE_IMPORTANCE_PATH` | explanation-token metadata |
+| `MODEL_SERVING_MODE` | `local` or `mlflow` |
+| `MLFLOW_SERVING_URL` | MLflow model-serving inference URL |
+| `FEEDBACK_PATH` | JSONL feedback log |
+| `ALLOW_FALLBACK_READY` | whether fallback mode counts as ready |
+| `CORS_ORIGINS` | allowed frontend origins |
+| `MLFLOW_TRACKING_URI` | MLflow tracking location |
 
-Purpose: process-level health check.
+## 4. API Design
 
-Response:
+### 4.1 API Surface Overview
+
+```mermaid
+flowchart TB
+  Client["Frontend or operator"] --> Health["GET /health"]
+  Client --> Ready["GET /ready"]
+  Client --> Predict["POST /predict"]
+  Client --> Feedback["POST /feedback"]
+  Client --> ModelInfo["GET /model/info"]
+  Client --> Summary["GET /metrics-summary"]
+  Client --> Refresh["POST /monitoring/refresh"]
+  Client --> Metrics["GET /metrics"]
+  AlertMgr["AlertManager"] --> Alerts["POST /ops/alerts"]
+```
+
+### 4.2 Endpoint Summary
+
+| Endpoint | Method | Primary consumer | Purpose |
+| --- | --- | --- | --- |
+| `/health` | `GET` | Docker / operators | Process-level liveness |
+| `/ready` | `GET` | Docker / frontend / operators | Model-readiness signal |
+| `/predict` | `POST` | Frontend analyzer | Single-review sentiment inference |
+| `/feedback` | `POST` | Frontend analyzer | Ground-truth capture |
+| `/model/info` | `GET` | Frontend MLOps screen | Expose loaded-model metadata |
+| `/metrics-summary` | `GET` | Frontend MLOps screen | UI-friendly lifecycle summary |
+| `/monitoring/refresh` | `POST` | Frontend / operators | Refresh report-backed gauges |
+| `/metrics` | `GET` | Prometheus | Prometheus exposition endpoint |
+| `/ops/alerts` | `POST` | AlertManager | Receive alert notifications |
+| `/ops/demo/error` | `POST` | Demo-only operators | Intentional 500 for monitoring demo |
+
+## 5. Request and Response Schemas
+
+### 5.1 `GET /health`
+
+**Purpose**  
+Returns basic liveness of the FastAPI process.
+
+**Response**
 
 ```json
 {
@@ -33,13 +100,21 @@ Response:
 }
 ```
 
-Expected status: `200 OK`.
+**Status codes**
 
-### `GET /ready`
+- `200 OK`
 
-Purpose: readiness check for orchestration. The API is ready only when a trained model is loaded, unless fallback readiness is explicitly enabled through `ALLOW_FALLBACK_READY=true`.
+---
 
-Response:
+### 5.2 `GET /ready`
+
+**Purpose**  
+Returns readiness for orchestration. The API is considered ready when:
+
+- a model is loaded locally, or
+- fallback readiness is explicitly allowed and fallback mode is active
+
+**Response**
 
 ```json
 {
@@ -50,13 +125,18 @@ Response:
 }
 ```
 
-Expected status: `200 OK`.
+**Status codes**
 
-### `POST /predict`
+- `200 OK`
 
-Purpose: classify one product review.
+---
 
-Request:
+### 5.3 `POST /predict`
+
+**Purpose**  
+Predict sentiment for one review.
+
+**Request schema**
 
 ```json
 {
@@ -64,15 +144,15 @@ Request:
 }
 ```
 
-Validation:
+**Field rules**
 
-| Field | Type | Rule |
+| Field | Type | Constraint |
 | --- | --- | --- |
 | `review_text` | string | required |
 | `review_text` | string | minimum length `1` |
 | `review_text` | string | maximum length `5000` |
 
-Response:
+**Response schema**
 
 ```json
 {
@@ -84,8 +164,8 @@ Response:
     "positive": 0.93
   },
   "explanation": [
-    {"token": "excellent", "weight": 0.41},
-    {"token": "fast", "weight": 0.22}
+    { "token": "excellent", "weight": 0.41 },
+    { "token": "fast", "weight": 0.22 }
   ],
   "model_version": "local-production",
   "mlflow_run_id": "61f2ee995e7d4084a210a3513d83eec8",
@@ -93,21 +173,33 @@ Response:
 }
 ```
 
-Errors:
+**Response fields**
 
-| Condition | Expected response |
+| Field | Meaning |
 | --- | --- |
-| Missing `review_text` | `422` with validation detail and Prometheus invalid-review counter |
-| Empty text | `422` with validation detail |
-| Text longer than `5000` characters | `422` with validation detail |
-| Model service value error | `400` with structured detail |
-| Unhandled exception | logged and counted in Prometheus |
+| `sentiment` | predicted class |
+| `confidence` | probability of predicted class |
+| `class_probabilities` | full class-probability distribution |
+| `explanation` | top contributing tokens for the predicted class |
+| `model_version` | selected model version metadata |
+| `mlflow_run_id` | traceability back to tracked experiment |
+| `latency_ms` | end-to-end model-service latency |
 
-### `POST /feedback`
+**Status codes**
 
-Purpose: store ground-truth labels when they become available.
+- `200 OK`
+- `400 Bad Request` for model-service value errors
+- `422 Unprocessable Entity` for request validation errors
+- `500 Internal Server Error` for unhandled failures
 
-Request:
+---
+
+### 5.4 `POST /feedback`
+
+**Purpose**  
+Persist a feedback event once the actual sentiment becomes available.
+
+**Request schema**
 
 ```json
 {
@@ -118,16 +210,16 @@ Request:
 }
 ```
 
-Validation:
+**Field rules**
 
-| Field | Type | Rule |
+| Field | Type | Constraint |
 | --- | --- | --- |
-| `review_text` | string | required, `1` to `5000` characters |
-| `predicted_sentiment` | enum | `negative`, `neutral`, or `positive` |
-| `actual_sentiment` | enum | `negative`, `neutral`, or `positive` |
+| `review_text` | string | required, `1` to `5000` chars |
+| `predicted_sentiment` | enum | `negative`, `neutral`, `positive` |
+| `actual_sentiment` | enum | `negative`, `neutral`, `positive` |
 | `source` | string | optional, defaults to `demo` |
 
-Response:
+**Response schema**
 
 ```json
 {
@@ -136,13 +228,22 @@ Response:
 }
 ```
 
-Storage: appends one JSON object per line to the configured feedback path. Prometheus counters track submitted labels and matches between predicted and actual labels.
+**Write behavior**
 
-### `GET /model/info`
+- appends one JSON record per line to the configured feedback log
+- enriches stored record with:
+  - `submitted_at`
+  - `feedback_type`
+  - `is_correction`
 
-Purpose: return current model loading state and metadata.
+---
 
-Response includes:
+### 5.5 `GET /model/info`
+
+**Purpose**  
+Expose serving mode and selected model metadata.
+
+**Returned fields include**
 
 - `model_loaded`
 - `fallback_mode`
@@ -152,15 +253,17 @@ Response includes:
 - `metadata.model_name`
 - `metadata.model_version`
 - `metadata.mlflow_run_id`
-- `metadata.git_commit`
 - `metadata.data_version`
 - `metadata.trained_at`
 
-### `GET /metrics-summary`
+---
 
-Purpose: frontend-friendly MLOps summary. The React MLOps screen uses this endpoint for status tiles, status-aware pipeline visualization, recent events, data quality, model metadata, drift, and links.
+### 5.6 `GET /metrics-summary`
 
-Response sections include:
+**Purpose**  
+Provide a frontend-friendly summary for the MLOps dashboard.
+
+**Returned sections include**
 
 - `api`
 - `model`
@@ -178,11 +281,16 @@ Response sections include:
 - `pipeline_performance`
 - `batch_pipeline`
 
-### `POST /monitoring/refresh`
+This endpoint is not meant to be scraped by Prometheus. It is a UI aggregation layer that combines model state with report-derived lifecycle summaries.
 
-Purpose: refresh report-backed Prometheus gauges before opening Grafana or Prometheus.
+---
 
-Response:
+### 5.7 `POST /monitoring/refresh`
+
+**Purpose**  
+Refresh report-backed Prometheus gauges on demand.
+
+**Response**
 
 ```json
 {
@@ -195,21 +303,27 @@ Response:
 }
 ```
 
-### `GET /metrics`
+---
 
-Purpose: expose Prometheus text-format metrics.
+### 5.8 `GET /metrics`
 
-Behavior:
+**Purpose**  
+Expose Prometheus metrics in text format.
 
-- Refreshes process metrics.
-- Refreshes report-backed lifecycle gauges.
-- Returns `CONTENT_TYPE_LATEST`.
+**Behavior**
 
-### `POST /ops/alerts`
+- refreshes process metrics
+- refreshes report-backed lifecycle metrics
+- returns `CONTENT_TYPE_LATEST`
 
-Purpose: receive AlertManager webhook notifications and count them through Prometheus.
+---
 
-Response:
+### 5.9 `POST /ops/alerts`
+
+**Purpose**  
+Receive AlertManager webhook payloads and count alert notifications by label.
+
+**Response**
 
 ```json
 {
@@ -218,83 +332,249 @@ Response:
 }
 ```
 
-### `POST /ops/demo/error`
+---
 
-Purpose: optional monitoring demo endpoint for intentionally generating a `500` error. It is available only when `ENABLE_DEMO_OPS_ENDPOINTS=true`.
+### 5.10 `POST /ops/demo/error`
 
-## Frontend Screens
+**Purpose**  
+Generate an intentional `500` error for monitoring demo purposes.
 
-| Screen | Purpose | API dependencies |
-| --- | --- | --- |
-| Analyzer | Paste review, run prediction, view confidence/explanation, submit feedback | `/predict`, `/feedback` |
-| MLOps | Show health, model metrics, pipeline status, recent events, tool links | `/metrics-summary`, `/monitoring/refresh` |
-| Guide panel | Non-technical user manual inside the UI | none |
-| Product tour | Interactive onboarding and UI explanation | none |
+**Availability**
 
-## ML Module Responsibilities
+- only enabled when `ENABLE_DEMO_OPS_ENDPOINTS=true`
+
+## 6. API Interaction Sequences
+
+### 6.1 Prediction Sequence
+
+```mermaid
+sequenceDiagram
+  participant FE as Frontend
+  participant API as FastAPI
+  participant MW as Request middleware
+  participant MS as ModelService
+  participant PM as Prometheus metrics
+
+  FE->>API: POST /predict
+  API->>MW: start request envelope
+  API->>MS: predict(review_text)
+  MS-->>API: sentiment, probabilities, explanation, metadata
+  API->>PM: observe latency and prediction counters
+  API-->>FE: PredictResponse
+```
+
+### 6.2 Feedback Sequence
+
+```mermaid
+sequenceDiagram
+  participant FE as Frontend
+  participant API as FastAPI
+  participant FB as Feedback JSONL
+  participant PM as Prometheus metrics
+
+  FE->>API: POST /feedback
+  API->>FB: append enriched feedback record
+  API->>PM: increment feedback counters
+  API-->>FE: FeedbackResponse
+```
+
+### 6.3 Metrics Summary Sequence
+
+```mermaid
+sequenceDiagram
+  participant FE as Frontend
+  participant API as FastAPI
+  participant RM as report_metrics.py
+  participant Reports as JSON report artifacts
+
+  FE->>API: GET /metrics-summary
+  API->>RM: refresh_report_metrics(model_info)
+  RM->>Reports: load JSON reports
+  RM-->>API: aggregated report sections
+  API-->>FE: UI-friendly MLOps summary
+```
+
+## 7. Internal Module Design
+
+### 7.1 API Package Structure
 
 | Module | Responsibility |
 | --- | --- |
-| `ml.data_ingestion` | Download/import Hugging Face data or generate offline seed fallback |
-| `ml.validation` | Validate schema, nulls, duplicates, rating range, sentiment labels, class distribution |
-| `ml.eda` | Generate EDA JSON, Markdown, and chart artifacts |
-| `ml.preprocessing` | Normalize text, reject bad rows, create fixed train/validation/test splits |
-| `ml.features` | Compute drift baseline statistics |
-| `ml.training` | Train candidates, log MLflow runs, compare models, save selected artifact |
-| `ml.evaluation` | Evaluate selected model and enforce acceptance gate |
-| `ml.monitoring` | Drift calculation, performance reports, dashboard summary publishing |
-| `ml.orchestration` | Batch pipeline utilities for Airflow incoming-file workflow |
-| `apps.api.sentiment_api` | API serving, metrics, logging, feedback, monitoring refresh |
+| `main.py` | FastAPI app creation, middleware, routes, exception handlers |
+| `config.py` | runtime settings from environment variables |
+| `schemas.py` | request and response schema definitions |
+| `model_service.py` | model loading, local inference, MLflow inference mode, fallback mode |
+| `metrics.py` | Prometheus metric declarations and process refresh logic |
+| `report_metrics.py` | reads lifecycle reports and updates gauges |
+| `logging_config.py` | JSON-aware logging setup |
 
-## Data Contracts
+### 7.2 `ModelService` Design
 
-Canonical review schema:
+`ModelService` is the serving facade that hides backend-specific inference details.
+
+**Key behaviors**
+
+- loads local `joblib` model artifact when available
+- loads model metadata and feature-importance metadata
+- supports two serving modes:
+  - `local`
+  - `mlflow`
+- supports fallback keyword inference if no trained local model exists
+- normalizes all modes to the same `PredictResponse` contract
+
+**Important methods**
+
+| Method | Purpose |
+| --- | --- |
+| `load()` | load model and metadata artifacts |
+| `predict()` | unified public inference method |
+| `_predict_via_mlflow_serving()` | call MLflow model server via HTTP |
+| `_predict_proba()` | compute class probabilities for local model |
+| `_explain_model_prediction()` | derive top contributing tokens |
+| `_fallback_predict()` | demo-safe keyword fallback |
+| `info()` | expose serving metadata for `/ready`, `/model/info`, and `/metrics-summary` |
+
+### 7.3 Middleware and Exception Handling
+
+The request middleware wraps every HTTP request in one consistent envelope:
+
+- assigns or propagates a request ID
+- measures latency
+- increments active request gauges
+- records request count by endpoint, method, and status code
+- logs structured completion events
+
+Exception handling is explicit:
+
+| Error source | Behavior |
+| --- | --- |
+| `ValueError` from model logic | returns `400` JSON response |
+| `RequestValidationError` | returns `422` JSON response and increments invalid-review counters |
+| unhandled exception | logged, counted, and re-raised as server failure |
+
+## 8. Data Contracts
+
+### 8.1 Canonical Review Schema
 
 | Column | Type | Meaning |
 | --- | --- | --- |
 | `review_id` | string | stable review identifier |
-| `review_text` | string | customer review body |
+| `review_text` | string | product review body |
 | `rating` | integer | original star rating |
-| `sentiment` | string | `negative`, `neutral`, `positive` |
-| `source` | string | dataset/source label |
+| `sentiment` | string | mapped class label |
+| `source` | string | dataset or origin label |
 | `ingested_at` | datetime string | ingestion timestamp |
 
-Sentiment mapping:
+### 8.2 Sentiment Mapping
 
-- Ratings `1-2` -> `negative`
-- Rating `3` -> `neutral`
-- Ratings `4-5` -> `positive`
-
-The current default training subset uses ratings `1`, `3`, and `5` to avoid ambiguous borderline labels.
-
-## Logging And Exception Handling
-
-- API middleware creates a request ID when one is not provided.
-- Every request records endpoint, status code, and latency.
-- Unhandled API exceptions increment `sentiment_api_errors_total`.
-- Pydantic validation errors increment `sentiment_invalid_reviews_total` with a reason label.
-- Pipeline stages write JSON reports with `status`, counts, warnings, errors, and timing where applicable.
-- Airflow task failures are visible in the DAG UI and operational email hooks exist for missing or malformed batch files.
-
-## Configuration
-
-Important environment variables:
-
-| Variable | Purpose |
+| Rating | Sentiment |
 | --- | --- |
-| `MODEL_PATH` | model artifact path |
-| `MODEL_METADATA_PATH` | model metadata JSON |
-| `FEEDBACK_PATH` | feedback JSONL path |
-| `CORS_ORIGINS` | allowed browser origins |
-| `ALLOW_FALLBACK_READY` | whether fallback serving counts as ready |
-| `MLFLOW_TRACKING_URI` | MLflow server or local file tracking path |
-| `VITE_API_BASE_URL` | frontend API base URL |
+| `1-2` | `negative` |
+| `3` | `neutral` |
+| `4-5` | `positive` |
 
-## Current Implementation Evidence
+The current default sampled training subset emphasizes ratings `1`, `3`, and `5` for clearer separation and a balanced local training set.
 
-- API tests pass through `pytest`.
-- Frontend production build passes through `npm run build`.
-- `/ready` reports trained model loaded and fallback disabled.
-- `/predict` returns sentiment, confidence, explanation, latency, model version, and MLflow run ID.
-- `/metrics-summary` provides real data for the MLOps dashboard.
+## 9. ML Package Responsibilities
 
+| Package | Responsibility | Primary outputs |
+| --- | --- | --- |
+| `ml.data_ingestion` | ingest dataset or offline fallback | raw CSV + ingestion report |
+| `ml.validation` | schema and quality validation | validation JSON/Markdown |
+| `ml.eda` | descriptive statistics and charts | EDA reports + figures |
+| `ml.preprocessing` | clean text, reject invalid rows, split data | processed train/val/test data |
+| `ml.features` | compute drift baseline | baseline JSON |
+| `ml.training` | train candidates, compare, log MLflow, export artifacts | model artifacts + comparison reports |
+| `ml.evaluation` | evaluate selected model and gate acceptance | evaluation and acceptance reports |
+| `ml.monitoring` | drift, maintenance, performance, report publishing | drift/maintenance/performance reports |
+| `ml.orchestration` | batch pipeline helpers for Airflow | batch operational artifacts |
+| `ml.serving` | MLflow pyfunc model wrapper | model-serving package |
+
+## 10. Pipeline and DAG Interfaces
+
+### 10.1 DVC Stage Flow
+
+```mermaid
+flowchart LR
+  ingest --> validate --> eda --> preprocess --> prepare_feedback
+  prepare_feedback --> merge_feedback --> featurize --> train --> evaluate --> accept --> drift --> publish
+```
+
+### 10.2 Airflow DAGs
+
+| DAG | Purpose |
+| --- | --- |
+| `sentiment_training_pipeline` | operational view of the full training/evaluation lifecycle |
+| `sentiment_batch_pipeline` | file-driven batch ingestion and quarantine workflow |
+| `sentiment_monitoring_maintenance` | drift/feedback policy evaluation and retraining trigger path |
+
+## 11. Monitoring Interface Design
+
+### 11.1 Metric Categories
+
+The API exports metrics in these groups:
+
+- HTTP request counters, histograms, and active request gauges
+- model inference latency and prediction distribution
+- invalid input counters by reason
+- model loaded / fallback / acceptance gauges
+- drift and maintenance gauges
+- feedback counts, matches, and corrections
+- pipeline duration, stage duration, and throughput gauges
+
+### 11.2 Monitoring Data Flow
+
+```mermaid
+flowchart LR
+  API["FastAPI /metrics"] --> Prom["Prometheus"]
+  Reports["JSON reports"] --> RM["report_metrics.py"]
+  RM --> API
+  Prom --> Graf["Grafana"]
+  Prom --> Rules["Alert rules"]
+  Rules --> AM["AlertManager"]
+  AM --> Webhook["/ops/alerts"]
+```
+
+## 12. Logging Design
+
+Logging is structured to support debugging and demo traceability.
+
+**Captured fields include**
+
+- request ID
+- endpoint
+- status code
+- latency
+- model state
+- alert receipt summaries
+
+Pipeline stages separately emit JSON reports that act as structured lifecycle logs.
+
+## 13. Validation and Error Matrix
+
+| Condition | Where enforced | Response / handling |
+| --- | --- | --- |
+| missing `review_text` | Pydantic request schema | `422`, invalid-review counter labeled |
+| empty review text | Pydantic request schema | `422` |
+| review text too long | Pydantic request schema | `422` |
+| model service malformed MLflow response | `ModelService` | `400` or raised failure path |
+| MLflow serving HTTP error | `ModelService` | server-side exception path |
+| model artifact missing | `ModelService.load()` | fallback mode or MLflow mode |
+| malformed feedback file row | monitoring logic | row ignored or reported through lifecycle processing |
+
+## 14. Frontend Dependency Contract
+
+The frontend depends only on the API contracts, not on Python code or model internals.
+
+| Frontend feature | API dependency |
+| --- | --- |
+| Review prediction | `POST /predict` |
+| Feedback submission | `POST /feedback` |
+| Readiness indicator | `GET /ready` |
+| Model metadata view | `GET /model/info` |
+| MLOps dashboard | `GET /metrics-summary`, `POST /monitoring/refresh` |
+| External tool links | URLs supplied by `metrics-summary` |
+
+## 15. LLD Summary
+
+At the low-level design layer, the system is centered around a **typed FastAPI contract**, a **serving facade that isolates inference modes**, and a **report-backed monitoring model** that bridges offline ML artifacts with live operational dashboards. This design keeps the frontend stable, the serving path explainable, and the MLOps evidence accessible through clean interfaces.
